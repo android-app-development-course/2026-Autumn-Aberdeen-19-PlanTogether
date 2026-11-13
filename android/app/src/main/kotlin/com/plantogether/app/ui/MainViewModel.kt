@@ -9,6 +9,7 @@ import com.plantogether.app.data.JoinTripRequest
 import com.plantogether.app.data.LoginRequest
 import com.plantogether.app.data.ReadStateStore
 import com.plantogether.app.data.RegisterRequest
+import com.plantogether.app.data.SettingsStore
 import com.plantogether.app.data.TokenStore
 import com.plantogether.app.data.TripRequest
 import com.plantogether.app.data.TripResponse
@@ -24,6 +25,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val tokenStore = TokenStore(application.applicationContext)
     private val readStateStore = ReadStateStore(application.applicationContext)
+    private val settingsStore = SettingsStore(application.applicationContext)
 
     /** 我每趟行程看到的最新 revision；null 表示本地存储还没读出来。 */
     val seenRevisions: StateFlow<Map<Long, Long>?> = readStateStore.seenRevisions
@@ -62,6 +64,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _tripsState = MutableStateFlow<TripsState>(TripsState.Loading)
     val tripsState: StateFlow<TripsState> = _tripsState
 
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing
+
     // ---- 创建行程 ----
 
     sealed interface CreateState {
@@ -97,6 +102,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun restoreSession() {
         viewModelScope.launch {
+            // 先把保存过的后端地址装上，否则所有请求都会打到默认地址
+            val savedBaseUrl = runCatching { settingsStore.readBaseUrl() }.getOrNull()
+            if (savedBaseUrl != null) ApiClient.setBaseUrl(savedBaseUrl)
+            _serverAddress.value = ApiClient.baseUrl
+
             val stored = runCatching { tokenStore.read() }.getOrNull()
             if (stored == null) {
                 _bootState.value = BootState.Ready
@@ -184,6 +194,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * 下拉刷新用：不切到 Loading（否则列表整块闪成转圈、内容跳走），
+     * 只挂一个 refreshing 标记，失败也只弹一句提示、不清空已有列表。
+     */
+    fun refreshTrips() {
+        if (_refreshing.value) return
+        _refreshing.value = true
+        viewModelScope.launch {
+            try {
+                _tripsState.value = TripsState.Success(ApiClient.api.listTrips())
+            } catch (e: Exception) {
+                val current = _tripsState.value
+                if (current !is TripsState.Success) {
+                    _tripsState.value = TripsState.Error(errorMessage(e))
+                }
+            } finally {
+                _refreshing.value = false
+            }
+        }
+    }
+
     fun createTrip(request: TripRequest) {
         _createState.value = CreateState.Loading
         viewModelScope.launch {
@@ -218,6 +249,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resetJoinState() {
         _joinState.value = JoinState.Idle
+    }
+
+    // ---- 服务器地址 ----
+
+    private val _serverAddress = MutableStateFlow(ApiClient.baseUrl)
+    val serverAddress: StateFlow<String> = _serverAddress
+
+    sealed interface ServerCheck {
+        data object Idle : ServerCheck
+        data object Testing : ServerCheck
+        data class Ok(val display: String) : ServerCheck
+        data class Failed(val message: String) : ServerCheck
+    }
+
+    private val _serverCheck = MutableStateFlow<ServerCheck>(ServerCheck.Idle)
+    val serverCheck: StateFlow<ServerCheck> = _serverCheck
+
+    /**
+     * 保存并立即试连一次。
+     * 地址不合法时不动原地址，直接返回失败原因——避免一次手滑把 App 弄成连不上。
+     */
+    fun saveServerAddress(raw: String) {
+        if (!ApiClient.setBaseUrl(raw)) {
+            _serverCheck.value = ServerCheck.Failed("地址格式不对，示例：http://192.168.1.8:8080")
+            return
+        }
+        _serverAddress.value = ApiClient.baseUrl
+        _serverCheck.value = ServerCheck.Testing
+        viewModelScope.launch {
+            runCatching { settingsStore.saveBaseUrl(ApiClient.baseUrl) }
+            _serverCheck.value = try {
+                ApiClient.api.health()
+                ServerCheck.Ok("已连接到 ${ApiClient.baseUrl}")
+            } catch (e: Exception) {
+                ServerCheck.Failed(errorMessage(e))
+            }
+        }
+    }
+
+    /** 忘了自己改过什么的时候，一键回到 http://127.0.0.1:8080/（配 adb reverse 时用）。 */
+    fun resetServerAddress() {
+        ApiClient.setBaseUrl(ApiClient.DEFAULT_BASE_URL)
+        _serverAddress.value = ApiClient.baseUrl
+        _serverCheck.value = ServerCheck.Idle
+        viewModelScope.launch { runCatching { settingsStore.clearBaseUrl() } }
+    }
+
+    fun resetServerCheck() {
+        _serverCheck.value = ServerCheck.Idle
     }
 
     // ---- 未读标记 ----

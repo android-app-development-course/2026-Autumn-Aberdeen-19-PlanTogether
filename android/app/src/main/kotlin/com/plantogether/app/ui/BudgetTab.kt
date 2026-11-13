@@ -218,6 +218,8 @@ private fun BudgetTargetDialog(
     var value by remember {
         mutableStateOf(current?.let { if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString() }.orEmpty())
     }
+    var tried by remember { mutableStateOf(false) }
+    val parsed = parseOptionalNumber(value)
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(shape = MaterialTheme.shapes.large, tonalElevation = 6.dp) {
@@ -229,17 +231,24 @@ private fun BudgetTargetDialog(
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
+                ValidatedField(
                     value = value,
                     onValueChange = { value = it },
-                    label = { Text("总预算 ¥") },
-                    modifier = Modifier.fillMaxWidth(),
+                    label = "总预算 ¥",
+                    error = if (tried) parsed.errorOf() else null,
+                    keyboardOptions = numberKeyboard(),
                 )
                 Spacer(Modifier.height(16.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) { Text("取消") }
                     Spacer(Modifier.width(8.dp))
-                    TextButton(onClick = { onSave(value.trim().toDoubleOrNull()) }) { Text("保存") }
+                    TextButton(
+                        onClick = {
+                            tried = true
+                            if (parsed.errorOf() != null) return@TextButton
+                            onSave(parsed.orNull())
+                        },
+                    ) { Text("保存") }
                 }
             }
         }

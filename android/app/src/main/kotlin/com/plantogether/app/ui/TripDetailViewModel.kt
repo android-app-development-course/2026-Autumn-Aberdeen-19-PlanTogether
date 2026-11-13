@@ -72,6 +72,10 @@ class TripDetailViewModel(private val tripId: Long) : ViewModel() {
     private val _loading = MutableStateFlow(true)
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
 
+    /** 下拉刷新手势的状态，跟首屏 loading 分开，避免刷一次整个页面闪一下。 */
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
@@ -101,34 +105,51 @@ class TripDetailViewModel(private val tripId: Long) : ViewModel() {
     // ---------------- 加载与自动同步 ----------------
 
     fun refreshAll(silent: Boolean = false) {
-        lastLoadAt = System.currentTimeMillis()
         if (!silent) _loading.value = true
         viewModelScope.launch {
-            val errors = mutableListOf<String>()
-            coroutineScope {
-                val tripJob = async { runCatching { api.getTrip(tripId) } }
-                val placesJob = async { runCatching { api.listPlaces(tripId) } }
-                val linksJob = async { runCatching { api.listLinks(tripId) } }
-                val commentsJob = async { runCatching { api.listComments(tripId) } }
-                val checklistJob = async { runCatching { api.listChecklist(tripId) } }
-                val decisionsJob = async { runCatching { api.listDecisions(tripId) } }
-                val membersJob = async { runCatching { api.listMembers(tripId) } }
-                val activityJob = async { runCatching { api.listActivity(tripId) } }
-
-                tripJob.await().onSuccess { _trip.value = it }.onFailure { errors += errorMessage(it) }
-                placesJob.await().onSuccess { _places.value = it }.onFailure { errors += errorMessage(it) }
-                linksJob.await().onSuccess { _links.value = it }.onFailure { errors += errorMessage(it) }
-                commentsJob.await().onSuccess { _comments.value = it }.onFailure { errors += errorMessage(it) }
-                checklistJob.await().onSuccess { _checklist.value = it }.onFailure { errors += errorMessage(it) }
-                decisionsJob.await().onSuccess { _decisions.value = it }.onFailure { errors += errorMessage(it) }
-                membersJob.await().onSuccess { _members.value = it }.onFailure { errors += errorMessage(it) }
-                activityJob.await().onSuccess { _activity.value = it }.onFailure { errors += errorMessage(it) }
-            }
-            syncRevision()
+            loadEverything(reportErrors = !silent)
             if (!silent) _loading.value = false
-            // 静默刷新时不要用「无权限」这类错误打断用户
-            if (!silent && errors.isNotEmpty()) _message.value = errors.first()
         }
+    }
+
+    /** 下拉刷新：不清空已有内容、不整页转圈，只挂一个刷新手势的标记。 */
+    fun pullRefresh() {
+        if (_refreshing.value) return
+        _refreshing.value = true
+        viewModelScope.launch {
+            try {
+                loadEverything(reportErrors = true)
+            } finally {
+                _refreshing.value = false
+            }
+        }
+    }
+
+    private suspend fun loadEverything(reportErrors: Boolean) {
+        lastLoadAt = System.currentTimeMillis()
+        val errors = mutableListOf<String>()
+        coroutineScope {
+            val tripJob = async { runCatching { api.getTrip(tripId) } }
+            val placesJob = async { runCatching { api.listPlaces(tripId) } }
+            val linksJob = async { runCatching { api.listLinks(tripId) } }
+            val commentsJob = async { runCatching { api.listComments(tripId) } }
+            val checklistJob = async { runCatching { api.listChecklist(tripId) } }
+            val decisionsJob = async { runCatching { api.listDecisions(tripId) } }
+            val membersJob = async { runCatching { api.listMembers(tripId) } }
+            val activityJob = async { runCatching { api.listActivity(tripId) } }
+
+            tripJob.await().onSuccess { _trip.value = it }.onFailure { errors += errorMessage(it) }
+            placesJob.await().onSuccess { _places.value = it }.onFailure { errors += errorMessage(it) }
+            linksJob.await().onSuccess { _links.value = it }.onFailure { errors += errorMessage(it) }
+            commentsJob.await().onSuccess { _comments.value = it }.onFailure { errors += errorMessage(it) }
+            checklistJob.await().onSuccess { _checklist.value = it }.onFailure { errors += errorMessage(it) }
+            decisionsJob.await().onSuccess { _decisions.value = it }.onFailure { errors += errorMessage(it) }
+            membersJob.await().onSuccess { _members.value = it }.onFailure { errors += errorMessage(it) }
+            activityJob.await().onSuccess { _activity.value = it }.onFailure { errors += errorMessage(it) }
+        }
+        syncRevision()
+        // 静默刷新时不要用「无权限」这类错误打断用户
+        if (reportErrors && errors.isNotEmpty()) _message.value = errors.first()
     }
 
     fun startAutoRefresh() {

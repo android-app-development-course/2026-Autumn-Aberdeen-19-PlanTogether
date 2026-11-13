@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -34,6 +36,9 @@ fun CreateTripScreen(
     var groupSize by remember { mutableStateOf("") }
     var budgetTarget by remember { mutableStateOf("") }
 
+    // 只有「提交过一次」之后才显示红字，否则一进页面全是报错很难看
+    var tried by remember { mutableStateOf(false) }
+
     val createState by viewModel.createState.collectAsStateWithLifecycle()
 
     LaunchedEffect(createState) {
@@ -41,11 +46,19 @@ fun CreateTripScreen(
     }
 
     val loading = createState is MainViewModel.CreateState.Loading
-    val error = (createState as? MainViewModel.CreateState.Error)?.message
+    val serverError = (createState as? MainViewModel.CreateState.Error)?.message
+
+    val dateRangeError = checkDateRange(startDate, endDate)
+    val groupSizeResult = parseOptionalInt(groupSize)
+    val budgetResult = parseOptionalNumber(budgetTarget)
+
+    val canSubmit = title.isNotBlank() && dateRangeError == null &&
+        groupSizeResult.errorOf() == null && budgetResult.errorOf() == null
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
     ) {
         TextButton(onClick = { viewModel.resetCreateState(); onDone() }) { Text("← 返回") }
@@ -57,72 +70,82 @@ fun CreateTripScreen(
             value = title,
             onValueChange = { title = it },
             label = { Text("行程标题 *") },
+            isError = tried && title.isBlank(),
+            supportingText = if (tried && title.isBlank()) {
+                { Text("给这趟旅行起个名字，比如「周末去杭州」") }
+            } else {
+                null
+            },
+            singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         OutlinedTextField(
             value = destination,
             onValueChange = { destination = it },
             label = { Text("目的地") },
+            singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = startDate,
-            onValueChange = { startDate = it },
-            label = { Text("开始日期 (yyyy-MM-dd，可选)") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(8.dp))
+        DateField(startDate, { startDate = it }, "开始日期")
+        Spacer(Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = endDate,
-            onValueChange = { endDate = it },
-            label = { Text("结束日期 (yyyy-MM-dd，可选)") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(8.dp))
+        DateField(endDate, { endDate = it }, "结束日期")
+        if (dateRangeError != null) {
+            Text(
+                dateRangeError,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+        Spacer(Modifier.height(12.dp))
 
-        OutlinedTextField(
+        ValidatedField(
             value = groupSize,
             onValueChange = { groupSize = it },
-            label = { Text("人数（可选）") },
-            modifier = Modifier.fillMaxWidth(),
+            label = "人数（可选）",
+            error = if (tried) groupSizeResult.errorOf() else null,
+            keyboardOptions = numberKeyboard(integerOnly = true),
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
-        OutlinedTextField(
+        ValidatedField(
             value = budgetTarget,
             onValueChange = { budgetTarget = it },
-            label = { Text("总预算 ¥（可选）") },
-            modifier = Modifier.fillMaxWidth(),
+            label = "总预算 ¥（可选）",
+            error = if (tried) budgetResult.errorOf() else null,
+            keyboardOptions = numberKeyboard(),
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
 
-        if (error != null) {
-            Text(error, color = MaterialTheme.colorScheme.error)
+        if (serverError != null) {
+            Text(serverError, color = MaterialTheme.colorScheme.error)
             Spacer(Modifier.height(8.dp))
         }
 
         Button(
             onClick = {
+                tried = true
+                if (!canSubmit) return@Button
                 viewModel.createTrip(
                     TripRequest(
                         title = title.trim(),
                         destination = destination.trim().ifBlank { null },
-                        startDate = startDate.trim().ifBlank { null },
-                        endDate = endDate.trim().ifBlank { null },
-                        groupSize = groupSize.trim().toIntOrNull(),
-                        budgetTarget = budgetTarget.trim().toDoubleOrNull(),
+                        startDate = startDate.ifBlank { null },
+                        endDate = endDate.ifBlank { null },
+                        groupSize = groupSizeResult.orNull()?.toInt(),
+                        budgetTarget = budgetResult.orNull(),
                     )
                 )
             },
-            enabled = title.isNotBlank() && !loading,
+            enabled = !loading,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(if (loading) "创建中..." else "创建")
         }
+        Spacer(Modifier.height(24.dp))
     }
 }

@@ -11,6 +11,10 @@ import retrofit2.http.Path
 
 interface ApiService {
 
+    /** 用来在「服务器设置」里测通不通；不需要登录。 */
+    @GET("api/health")
+    suspend fun health(): Map<String, String>
+
     // ---- 账号 ----
 
     @POST("api/auth/register")

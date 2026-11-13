@@ -41,6 +41,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -90,6 +91,7 @@ fun TripDetailScreen(
     val members by detailVm.members.collectAsStateWithLifecycle()
     val activity by detailVm.activity.collectAsStateWithLifecycle()
     val loading by detailVm.loading.collectAsStateWithLifecycle()
+    val refreshing by detailVm.refreshing.collectAsStateWithLifecycle()
     val message by detailVm.message.collectAsStateWithLifecycle()
 
     val seenRevisions by viewModel.seenRevisions.collectAsStateWithLifecycle()
@@ -232,7 +234,11 @@ fun TripDetailScreen(
                 }
             }
 
-            Box(Modifier.weight(1f)) {
+            PullToRefreshBox(
+                isRefreshing = refreshing,
+                onRefresh = { detailVm.pullRefresh() },
+                modifier = Modifier.weight(1f),
+            ) {
                 if (loading && trip == null) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
@@ -561,6 +567,11 @@ private fun TripEditDialog(
     var budgetTarget by remember(trip) {
         mutableStateOf(trip?.budgetTarget?.let { formatPlainNumber(it) }.orEmpty())
     }
+    var tried by remember { mutableStateOf(false) }
+
+    val dateRangeError = checkDateRange(startDate, endDate)
+    val groupSizeResult = parseOptionalInt(groupSize)
+    val budgetResult = parseOptionalNumber(budgetTarget)
 
     DialogShell(onDismiss = onDismiss) {
         Text("编辑行程信息", style = MaterialTheme.typography.titleLarge)
@@ -574,37 +585,28 @@ private fun TripEditDialog(
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(destination, { destination = it }, label = { Text("目的地") }, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
-            Row {
-                OutlinedTextField(
-                    startDate,
-                    { startDate = it },
-                    label = { Text("开始 yyyy-MM-dd") },
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(8.dp))
-                OutlinedTextField(
-                    endDate,
-                    { endDate = it },
-                    label = { Text("结束 yyyy-MM-dd") },
-                    modifier = Modifier.weight(1f),
-                )
+            DateField(startDate, { startDate = it }, "开始日期")
+            Spacer(Modifier.height(8.dp))
+            DateField(endDate, { endDate = it }, "结束日期")
+            if (dateRangeError != null) {
+                Text(dateRangeError, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
             }
             Spacer(Modifier.height(8.dp))
-            Row {
-                OutlinedTextField(
-                    groupSize,
-                    { groupSize = it },
-                    label = { Text("预计人数") },
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(8.dp))
-                OutlinedTextField(
-                    budgetTarget,
-                    { budgetTarget = it },
-                    label = { Text("总预算 ¥") },
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            ValidatedField(
+                value = groupSize,
+                onValueChange = { groupSize = it },
+                label = "预计人数",
+                error = if (tried) groupSizeResult.errorOf() else null,
+                keyboardOptions = numberKeyboard(integerOnly = true),
+            )
+            Spacer(Modifier.height(8.dp))
+            ValidatedField(
+                value = budgetTarget,
+                onValueChange = { budgetTarget = it },
+                label = "总预算 ¥",
+                error = if (tried) budgetResult.errorOf() else null,
+                keyboardOptions = numberKeyboard(),
+            )
         }
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -612,20 +614,23 @@ private fun TripEditDialog(
             Spacer(Modifier.width(8.dp))
             TextButton(
                 onClick = {
+                    tried = true
+                    val ok = title.isNotBlank() && dateRangeError == null &&
+                        groupSizeResult.errorOf() == null && budgetResult.errorOf() == null
+                    if (!ok) return@TextButton
                     onSave(
                         TripRequest(
                             title = title.trim(),
                             destination = destination.trim().ifBlank { null },
-                            startDate = startDate.trim().ifBlank { null },
-                            endDate = endDate.trim().ifBlank { null },
-                            groupSize = groupSize.trim().toIntOrNull(),
-                            budgetTarget = budgetTarget.trim().toDoubleOrNull(),
+                            startDate = startDate.ifBlank { null },
+                            endDate = endDate.ifBlank { null },
+                            groupSize = groupSizeResult.orNull()?.toInt(),
+                            budgetTarget = budgetResult.orNull(),
                             visibility = trip?.visibility ?: "PRIVATE",
                             version = trip?.version,
                         ),
                     )
                 },
-                enabled = title.isNotBlank(),
             ) { Text("保存") }
         }
     }

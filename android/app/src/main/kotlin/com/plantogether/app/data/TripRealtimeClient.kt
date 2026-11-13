@@ -23,7 +23,7 @@ class TripRealtimeClient {
     ) {
         close()
         val request = Request.Builder()
-            .url("${ApiClient.BASE_URL}api/trips/$tripId/stream")
+            .url("${ApiClient.baseUrl}api/trips/$tripId/stream")
             .header("Accept", "text/event-stream")
             .build()
 

@@ -362,6 +362,18 @@ private fun PlaceEditorDialog(
     var notes by remember(initial) { mutableStateOf(initial?.notes.orEmpty()) }
     var backup by remember(initial) { mutableStateOf(initial?.backupOption.orEmpty()) }
     var mapLink by remember(initial) { mutableStateOf(initial?.mapLink.orEmpty()) }
+    var tried by remember { mutableStateOf(false) }
+
+    val latitudeResult = parseOptionalNumber(latitude)
+    val longitudeResult = parseOptionalNumber(longitude)
+    val budgetResult = parseOptionalNumber(budget)
+    val hasTimeError = startTime.isNotBlank() && parseIsoTime(startTime) == null ||
+        endTime.isNotBlank() && parseIsoTime(endTime) == null
+    val timeRangeError = run {
+        val s = parseIsoTime(startTime)
+        val e = parseIsoTime(endTime)
+        if (s != null && e != null && e.isBefore(s)) "结束时间不能早于开始时间" else null
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(shape = MaterialTheme.shapes.large, tonalElevation = 6.dp) {
@@ -390,50 +402,58 @@ private fun PlaceEditorDialog(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
-                        date,
-                        { date = it },
-                        label = { Text("日期 yyyy-MM-dd（留空=未定）") },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    DateField(date, { date = it }, "日期（留空=未定）")
                     Spacer(Modifier.height(8.dp))
                     Row {
-                        OutlinedTextField(
+                        TimeField(
                             startTime,
                             { startTime = it },
-                            label = { Text("开始 09:00") },
+                            "开始",
                             modifier = Modifier.weight(1f),
                         )
                         Spacer(Modifier.width(8.dp))
-                        OutlinedTextField(
+                        TimeField(
                             endTime,
                             { endTime = it },
-                            label = { Text("结束 11:00") },
+                            "结束",
                             modifier = Modifier.weight(1f),
+                        )
+                    }
+                    if (hasTimeError || timeRangeError != null) {
+                        Text(
+                            timeRangeError ?: "时间格式不对，请重新选一次",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 4.dp),
                         )
                     }
                     Spacer(Modifier.height(8.dp))
                     Row {
-                        OutlinedTextField(
-                            latitude,
-                            { latitude = it },
-                            label = { Text("纬度") },
+                        ValidatedField(
+                            value = latitude,
+                            onValueChange = { latitude = it },
+                            label = "纬度",
+                            error = if (tried) latitudeResult.errorOf() else null,
+                            keyboardOptions = numberKeyboard(),
                             modifier = Modifier.weight(1f),
                         )
                         Spacer(Modifier.width(8.dp))
-                        OutlinedTextField(
-                            longitude,
-                            { longitude = it },
-                            label = { Text("经度") },
+                        ValidatedField(
+                            value = longitude,
+                            onValueChange = { longitude = it },
+                            label = "经度",
+                            error = if (tried) longitudeResult.errorOf() else null,
+                            keyboardOptions = numberKeyboard(),
                             modifier = Modifier.weight(1f),
                         )
                     }
                     Spacer(Modifier.height(8.dp))
                     Row {
-                        OutlinedTextField(
-                            budget,
-                            { budget = it },
-                            label = { Text("预算 ¥") },
+                        ValidatedField(
+                            value = budget,
+                            onValueChange = { budget = it },
+                            label = "预算 ¥",
+                            error = if (tried) budgetResult.errorOf() else null,
+                            keyboardOptions = numberKeyboard(),
                             modifier = Modifier.weight(1f),
                         )
                         Spacer(Modifier.width(8.dp))
@@ -472,16 +492,23 @@ private fun PlaceEditorDialog(
                     Spacer(Modifier.width(8.dp))
                     TextButton(
                         onClick = {
+                            tried = true
+                            val blocking = name.isBlank() ||
+                                latitudeResult.errorOf() != null ||
+                                longitudeResult.errorOf() != null ||
+                                budgetResult.errorOf() != null ||
+                                hasTimeError || timeRangeError != null
+                            if (blocking) return@TextButton
                             onSave(
                                 PlaceRequest(
                                     name = name.trim(),
                                     address = address.trim().ifBlank { null },
-                                    latitude = latitude.trim().toDoubleOrNull(),
-                                    longitude = longitude.trim().toDoubleOrNull(),
-                                    date = date.trim().ifBlank { null },
-                                    startTime = startTime.trim().ifBlank { null },
-                                    endTime = endTime.trim().ifBlank { null },
-                                    budget = budget.trim().toDoubleOrNull(),
+                                    latitude = latitudeResult.orNull(),
+                                    longitude = longitudeResult.orNull(),
+                                    date = date.ifBlank { null },
+                                    startTime = startTime.ifBlank { null },
+                                    endTime = endTime.ifBlank { null },
+                                    budget = budgetResult.orNull(),
                                     stayLength = stayLength.trim().ifBlank { null },
                                     notes = notes.trim().ifBlank { null },
                                     backupOption = backup.trim().ifBlank { null },
@@ -491,7 +518,6 @@ private fun PlaceEditorDialog(
                                 ),
                             )
                         },
-                        enabled = name.isNotBlank(),
                     ) { Text("保存") }
                 }
             }

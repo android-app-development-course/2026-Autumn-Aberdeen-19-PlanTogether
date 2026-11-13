@@ -166,3 +166,86 @@
 - 系统推送、下拉刷新、截图 OCR 导入仍未做
 
 
+
+## 2026-11-14 · 第六轮：把「能用」磨成「好用」
+
+前五轮做的是功能有没有，这一轮只做一件事：**把每天都会碰到的粗糙处磨平**。
+不改数据模型、不加新接口（只加了一个 `/api/health` 复用），全部是体验与容错。
+
+### 1. 服务器地址可配置（去掉「只能自己电脑上用」的限制）
+
+之前 `BASE_URL` 写死在 `ApiClient.kt`，装到别人手机上必然连不上，改地址还得改代码重编译。
+
+- `ApiClient` 从 `object` 常量改成**运行时可重建**：`baseUrl` + `api` 都是 `@Volatile var`，
+  `setBaseUrl()` 校验通过后整条 Retrofit 链重建；地址非法时**保持原地址不变**，不会把自己弄失联
+- 地址规范化：不写 `http://` 自动补、缺尾部 `/` 自动补，用 OkHttp 的 `toHttpUrlOrNull()` 做真实校验
+- 新增 `SettingsStore`（DataStore）持久化地址；`restoreSession()` 启动时先加载地址再校验登录态
+- 新增「服务器设置」弹窗（登录页底部入口）：改地址 →「保存并测试」→ 调免登录的 `/api/health`
+  探活，分别报「格式不对 / 找不到主机 / 连不上 / 超时」，成功显示绿色「✓ 已连接到 …」
+- 网络错误文案按异常类型细分（`UnknownHostException` / `ConnectException` / `SocketTimeoutException`），
+  并直接指路「检查服务器设置」
+
+**意义**：同一个 APK，填一次局域网 IP 就能给别人手机用。第五轮遗留的「APK 只能自己用」问题关闭。
+
+### 2. 日期/时间从手输改成选择器
+
+原先是 `OutlinedTextField` 手打 `yyyy-MM-dd`，格式错就 400，共 5 处。
+
+- 新增 `FormInputs.kt`：`DateField`（系统日历）、`TimeField`（24 小时表盘）
+- 实现方式：输入框 `readOnly` + 透明 `Box(matchParentSize)` 遮罩接点击，避免和 TextField 的
+  focus/软键盘打架；有值时右侧给「清除」
+- 替换范围：新建行程、编辑行程信息、地点编辑器的日期与起止时间，**全 App 手输日期清零**
+  （`grep "yyyy-MM-dd\|toDoubleOrNull\|toIntOrNull"` 在 `FormInputs.kt` 之外已无匹配）
+
+### 3. 非法输入不再静默丢值
+
+原先 `toDoubleOrNull()` / `toIntOrNull()` 失败就变 `null`，等于默默把用户填的东西扔了。
+
+- 新增 `NumberResult<T>`（`Empty` / `Invalid(message)` / `Ok(value)`），配 `orNull()` / `errorOf()`
+- 新增 `ValidatedField`：输入框 + 错误提示 + `isError` 红边；**只在用户点过保存后（`tried`）才报错**，
+  不打扰正在输入的人
+- 覆盖：预计人数、总预算、地点预算、纬度、经度、停留时长
+- 所有数字栏位配 `numberKeyboard()`，自动弹数字/小数键盘
+
+### 4. 下拉刷新
+
+- 行程列表、行程详情 7 个页签都支持（material3 1.4.0 的 `PullToRefreshBox`）
+- 列表页去掉了顶栏「刷新」按钮，改由下拉承担，顶栏更宽松
+- **下拉失败不清空已有内容**：只有当前不是 Success 才提示错误，避免网络抖动把列表刷成白屏
+- 详情页抽出 `loadEverything(reportErrors)`，`refreshAll` 与 `pullRefresh` 共用，避免两套加载逻辑
+
+### 5. 后端错误兜底
+
+`ApiExceptionHandler` 原来只覆盖业务异常，格式错/缺参/未捕获异常会漏成 500 + 英文技术细节甚至堆栈。
+
+新增 4 个 handler：
+
+| 异常 | 原来 | 现在 |
+|------|------|------|
+| `HttpMessageNotReadableException` | 500 + Jackson 英文细节 | 400 +「日期格式不对，请用 2026-11-07 这种写法」/「数字格式不对，请只填阿拉伯数字」 |
+| `MethodArgumentTypeMismatchException` | 500 | 400 +「参数「x」的格式不对」 |
+| `MissingServletRequestParameterException` | 400 但文案泛 | 400 +「缺少必要参数「x」」 |
+| 其他未捕获 `Exception` | 500 + 堆栈外泄 | 500 +「服务器出了点问题，请稍后重试」，堆栈只进服务端日志 |
+
+### 验证
+
+- 后端 `compileKotlin` BUILD SUCCESSFUL
+- `scripts/api-smoke.ps1`：**76 项断言全部通过**（0 失败）
+- App `assembleDebug` BUILD SUCCESSFUL（20,628,341 字节，与上一版同尺寸）
+- 模拟器实机走查 12 张截图（`.tools/shots/v1`–`v12`）：
+  - v1–v4：服务器设置入口、弹窗、试连成功（绿）、填错地址超时（红）且原地址未被破坏
+  - v5：行程列表，顶栏「刷新」已移除
+  - v7：下拉时截到转圈指示器，确认刷新真的触发
+  - v8–v9：编辑行程，日期为只读框 + 系统日历
+  - v10：预计人数填 `abc` → 红边 +「请填整数」，弹窗不关、不发请求
+  - v11–v12：地点编辑器日期/时间只读，点「开始」弹 24 小时表盘，选完回填 `21:10`
+
+### 依赖变化
+
+- 无新增第三方依赖（`PullToRefreshBox`、`DatePicker`、`TimePicker` 都在已有的 material3 里）
+
+### 遗留
+
+- 日期选择器在英文系统上显示英文（跟随系统语言，非 App 问题）
+- 下拉刷新没有"上次更新时间"提示
+- 系统推送、截图 OCR 导入仍未做

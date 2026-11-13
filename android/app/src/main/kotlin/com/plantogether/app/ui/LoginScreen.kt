@@ -35,8 +35,11 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var displayName by remember { mutableStateOf("") }
     var isRegister by remember { mutableStateOf(false) }
+    var showServerSettings by remember { mutableStateOf(false) }
 
     val state by viewModel.authState.collectAsStateWithLifecycle()
+    val serverAddress by viewModel.serverAddress.collectAsStateWithLifecycle()
+    val authFailed = state is MainViewModel.AuthState.Error
 
     LaunchedEffect(state) {
         if (state is MainViewModel.AuthState.Success) onLoggedIn()
@@ -111,5 +114,22 @@ fun LoginScreen(
         }) {
             Text(if (isRegister) "已有账号？去登录" else "没有账号？去注册")
         }
+
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = "服务器：$serverAddress",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(onClick = { showServerSettings = true }) {
+            Text(if (authFailed) "连不上？检查服务器地址" else "服务器设置")
+        }
+    }
+
+    if (showServerSettings) {
+        ServerSettingsDialog(
+            viewModel = viewModel,
+            onDismiss = { showServerSettings = false },
+        )
     }
 }

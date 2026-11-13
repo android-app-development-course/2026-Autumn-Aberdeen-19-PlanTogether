@@ -19,11 +19,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,6 +39,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.plantogether.app.data.TripResponse
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripListScreen(
     viewModel: MainViewModel,
@@ -47,6 +50,7 @@ fun TripListScreen(
 ) {
     val state by viewModel.tripsState.collectAsStateWithLifecycle()
     val seenMap by viewModel.seenRevisions.collectAsStateWithLifecycle()
+    val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val seen = seenMap.orEmpty()
     var showJoin by remember { mutableStateOf(false) }
 
@@ -64,7 +68,6 @@ fun TripListScreen(
         ) {
             Text("我的行程", style = MaterialTheme.typography.headlineSmall)
             Row {
-                TextButton(onClick = { viewModel.loadTrips() }) { Text("刷新") }
                 TextButton(onClick = { showJoin = true }) { Text("加入行程") }
                 TextButton(onClick = onCreateTrip) { Text("新建") }
                 TextButton(onClick = onLogout) { Text("退出") }
@@ -72,43 +75,54 @@ fun TripListScreen(
         }
         Spacer(Modifier.height(12.dp))
 
-        when (val s = state) {
-            is MainViewModel.TripsState.Loading ->
-                Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-
-            is MainViewModel.TripsState.Error ->
-                Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(s.message, color = MaterialTheme.colorScheme.error)
-                        TextButton(onClick = { viewModel.loadTrips() }) { Text("重试") }
+        PullToRefreshBox(
+            isRefreshing = refreshing,
+            onRefresh = { viewModel.refreshTrips() },
+            modifier = Modifier.fillMaxWidth().weight(1f),
+        ) {
+            when (val s = state) {
+                is MainViewModel.TripsState.Loading ->
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
                     }
-                }
 
-            is MainViewModel.TripsState.Success ->
-                if (s.trips.isEmpty()) {
-                    Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                is MainViewModel.TripsState.Error ->
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("还没有行程")
-                            Spacer(Modifier.height(8.dp))
+                            Text(s.message, color = MaterialTheme.colorScheme.error)
+                            TextButton(onClick = { viewModel.loadTrips() }) { Text("重试") }
                             Text(
-                                "点右上角「新建」，或者用队友发来的邀请码「加入行程」",
+                                "下拉也可以重试",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
-                } else {
-                    LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
-                        items(s.trips) { trip ->
-                            TripCard(
-                                trip = trip,
-                                hasUnseen = trip.revision > (seen[trip.id] ?: 0L),
-                            ) { onOpenTrip(trip.id) }
+
+                is MainViewModel.TripsState.Success ->
+                    if (s.trips.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("还没有行程")
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    "点右上角「新建」，或者用队友发来的邀请码「加入行程」",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(Modifier.fillMaxSize()) {
+                            items(s.trips) { trip ->
+                                TripCard(
+                                    trip = trip,
+                                    hasUnseen = trip.revision > (seen[trip.id] ?: 0L),
+                                ) { onOpenTrip(trip.id) }
+                            }
                         }
                     }
-                }
+            }
         }
     }
 
