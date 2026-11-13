@@ -38,6 +38,9 @@ data class PlaceRequest(
     val notes: String? = null,
     val backupOption: String? = null,
     val mapLink: String? = null,
+    val rating: String? = null,
+    val avgCost: String? = null,
+    val openTime: String? = null,
     val sortOrder: Int = 0,
     val version: Int? = null,
 )
@@ -145,10 +148,51 @@ data class PlaceResponse(
     val notes: String? = null,
     val backupOption: String? = null,
     val mapLink: String? = null,
+    val rating: String? = null,
+    val avgCost: String? = null,
+    val openTime: String? = null,
     val sortOrder: Int = 0,
     val createdById: Long? = null,
     val createdByName: String? = null,
     val version: Int = 0,
+)
+
+/**
+ * 高德搜出来的一条地点。字段全是可空的——小店铺常常没有评分、人均、营业时间。
+ */
+data class PoiSuggestion(
+    val id: String,
+    val name: String,
+    val address: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val type: String? = null,
+    val rating: String? = null,
+    val avgCost: String? = null,
+    val tag: String? = null,
+    val openTimeToday: String? = null,
+    val tel: String? = null,
+    val businessArea: String? = null,
+) {
+    /** 卡片副标题：分类取最后一段，如「餐饮服务;中餐厅;浙江菜」→「浙江菜」。 */
+    val typeLabel: String?
+        get() = type?.split(';')?.lastOrNull()?.trim()?.takeIf { it.isNotBlank() }
+
+    /** 评分 + 人均拼成一行，缺哪个就少显示哪个。 */
+    val scoreLabel: String?
+        get() {
+            val parts = buildList {
+                rating?.let { add("★ $it") }
+                avgCost?.takeIf { it.isNotBlank() && it != "0.00" }?.let { add("人均 ¥$it") }
+            }
+            return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
+        }
+}
+
+data class PoiSearchResponse(
+    val configured: Boolean = true,
+    val items: List<PoiSuggestion> = emptyList(),
+    val message: String? = null,
 )
 
 data class LinkResponse(

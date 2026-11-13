@@ -1,5 +1,6 @@
 package com.plantogether.common
 
+import com.fasterxml.jackson.databind.exc.InvalidFormatException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -55,19 +56,34 @@ class ApiExceptionHandler {
      */
     @ExceptionHandler(HttpMessageNotReadableException::class)
     fun handleUnreadable(ex: HttpMessageNotReadableException): ResponseEntity<Map<String, String>> {
-        val raw = ex.mostSpecificCause.message.orEmpty()
+        // 只看 mostSpecificCause 不够：日期解析失败时最内层是 DateTimeParseException
+        // （"Text '2026/11/07' could not be parsed"），里面根本没有 "LocalDate" 字样。
+        // 所以要顺着整条 cause 链拼起来一起判断。
+        val chain = generateSequence<Throwable>(ex) { it.cause }
+            .take(8)
+            .toList()
+        // InvalidFormatException 会带上目标类型（LocalDate / Integer …），比消息文本可靠得多
+        val targetType = chain.filterIsInstance<InvalidFormatException>()
+            .firstOrNull()?.targetType?.simpleName.orEmpty()
+        val haystack = targetType + " | " + chain.joinToString(" | ") {
+            it.javaClass.simpleName + ": " + it.message.orEmpty()
+        }
+
         val message = when {
-            raw.contains("LocalDate", ignoreCase = true) ->
-                "日期格式不对，请用 2026-11-07 这种写法（年-月-日）"
-            raw.contains("LocalDateTime", ignoreCase = true) ->
-                "时间格式不对，请用 2026-11-07T09:00 这种写法"
-            raw.contains("NumberFormat", ignoreCase = true) || raw.contains("Integer", ignoreCase = true) ->
+            // LocalDateTime 必须排在 LocalDate 前面：前者字符串里也含 "LocalDate"
+            haystack.contains("LocalDateTime", ignoreCase = true) ->
+                "时间格式不对，请重新选一次时间"
+            haystack.contains("LocalTime", ignoreCase = true) ->
+                "时间格式不对，请重新选一次时间"
+            haystack.contains("LocalDate", ignoreCase = true) || haystack.contains("DateTimeParse", ignoreCase = true) ->
+                "日期格式不对，请重新选一次日期"
+            haystack.contains("NumberFormat", ignoreCase = true) || haystack.contains("Integer", ignoreCase = true) ->
                 "数字格式不对，请只填阿拉伯数字"
-            raw.contains("Unexpected end-of-input", ignoreCase = true) || raw.contains("Unrecognized", ignoreCase = true) ->
+            haystack.contains("Unexpected end-of-input", ignoreCase = true) || haystack.contains("Unrecognized", ignoreCase = true) ->
                 "请求内容格式有误，可能是客户端版本过旧"
             else -> "请求内容格式有误，请检查填写的内容"
         }
-        log.debug("请求体解析失败: {}", raw)
+        log.debug("请求体解析失败: {}", haystack)
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("error" to message))
     }
 

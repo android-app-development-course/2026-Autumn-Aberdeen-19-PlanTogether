@@ -8,6 +8,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ApiService {
 
@@ -104,6 +105,15 @@ interface ApiService {
 
     @PUT("api/trips/{tripId}/places/reorder")
     suspend fun reorderPlaces(@Path("tripId") tripId: Long, @Body orderedIds: List<Long>): List<PlaceResponse>
+
+    // ---- 地点搜索（后端代理高德，Key 不进 APK） ----
+
+    @GET("api/poi/search")
+    suspend fun searchPoi(
+        @Query("q") keyword: String,
+        @Query("city") city: String? = null,
+        @Query("limit") limit: Int = 10,
+    ): PoiSearchResponse
 
     // ---- 链接 ----
 

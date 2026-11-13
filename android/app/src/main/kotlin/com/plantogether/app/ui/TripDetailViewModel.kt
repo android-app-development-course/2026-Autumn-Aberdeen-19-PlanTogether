@@ -18,6 +18,7 @@ import com.plantogether.app.data.MemberRoleRequest
 import com.plantogether.app.data.OptionRequest
 import com.plantogether.app.data.PlaceRequest
 import com.plantogether.app.data.PlaceResponse
+import com.plantogether.app.data.PoiSuggestion
 import com.plantogether.app.data.TripRealtimeClient
 import com.plantogether.app.data.TripRequest
 import com.plantogether.app.data.TripResponse
@@ -78,6 +79,18 @@ class TripDetailViewModel(private val tripId: Long) : ViewModel() {
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+
+    /** 高德搜索的四种状态；NotConfigured 是「服务端没配 Key」，不是错误。 */
+    sealed interface PoiSearchState {
+        data object Idle : PoiSearchState
+        data object Searching : PoiSearchState
+        data object NotConfigured : PoiSearchState
+        data class Results(val items: List<PoiSuggestion>) : PoiSearchState
+        data class Empty(val message: String) : PoiSearchState
+    }
+
+    private val _poiState = MutableStateFlow<PoiSearchState>(PoiSearchState.Idle)
+    val poiState: StateFlow<PoiSearchState> = _poiState.asStateFlow()
 
     /** 当前看到的变更计数，界面用它算未读、并在离开时回写「已读到哪」。 */
     private val _revision = MutableStateFlow(0L)
@@ -358,6 +371,35 @@ class TripDetailViewModel(private val tripId: Long) : ViewModel() {
                 _message.value = errorMessage(e)
             }
         }
+    }
+
+    // ---------------- 地点搜索（高德） ----------------
+
+    /** 在「添加地点」里搜店名，搜到的结果可以一键填进表单。 */
+    fun searchPoi(keyword: String) {
+        val trimmed = keyword.trim()
+        if (trimmed.isEmpty()) {
+            _poiState.value = PoiSearchState.Idle
+            return
+        }
+        _poiState.value = PoiSearchState.Searching
+        viewModelScope.launch {
+            try {
+                val response = api.searchPoi(trimmed, city = _trip.value?.destination)
+                _poiState.value = when {
+                    !response.configured -> PoiSearchState.NotConfigured
+                    response.items.isEmpty() ->
+                        PoiSearchState.Empty(response.message ?: "没搜到这个店，换个写法试试")
+                    else -> PoiSearchState.Results(response.items)
+                }
+            } catch (e: Exception) {
+                _poiState.value = PoiSearchState.Empty(errorMessage(e))
+            }
+        }
+    }
+
+    fun resetPoiSearch() {
+        _poiState.value = PoiSearchState.Idle
     }
 
     // ---------------- 链接 ----------------

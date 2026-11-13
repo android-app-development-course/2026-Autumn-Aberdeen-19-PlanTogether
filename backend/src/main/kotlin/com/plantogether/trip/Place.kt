@@ -53,6 +53,21 @@ class Place(
     @Column(length = 2000)
     var mapLink: String? = null,
 
+    /**
+     * 从高德带过来的评分/人均/营业时间快照。
+     *
+     * 存快照而不是每次实时去查，原因是：这些数字变一点不该让行程卡抖动，
+     * 而且用户选定时看到的就是这个数，保持一致比「永远最新」更符合预期。
+     * 都是字符串，因为高德返回的就是字符串（"4.5"、"120.00"）。
+     */
+    var rating: String? = null,
+
+    var avgCost: String? = null,
+
+    /** 今日营业时间，如 "10:00-21:30"，也常见 "10:00-14:00;17:00-21:00"。 */
+    @Column(length = 200)
+    var openTime: String? = null,
+
     @Column(nullable = false)
     var sortOrder: Int = 0,
 

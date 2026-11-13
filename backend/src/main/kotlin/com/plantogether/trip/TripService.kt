@@ -249,6 +249,9 @@ class TripService(
             notes = request.notes?.trim()?.ifBlank { null },
             backupOption = request.backupOption?.trim()?.ifBlank { null },
             mapLink = request.mapLink?.trim()?.ifBlank { null },
+            rating = request.rating?.trim()?.ifBlank { null },
+            avgCost = request.avgCost?.trim()?.ifBlank { null },
+            openTime = request.openTime?.trim()?.ifBlank { null },
             sortOrder = if (request.sortOrder > 0) request.sortOrder else nextOrder,
             createdBy = user,
         )
@@ -281,6 +284,9 @@ class TripService(
         place.notes = request.notes?.trim()?.ifBlank { null }
         place.backupOption = request.backupOption?.trim()?.ifBlank { null }
         place.mapLink = request.mapLink?.trim()?.ifBlank { null }
+        place.rating = request.rating?.trim()?.ifBlank { null }
+        place.avgCost = request.avgCost?.trim()?.ifBlank { null }
+        place.openTime = request.openTime?.trim()?.ifBlank { null }
         activityLogger.log(trip, "PLACE_UPDATED", "修改了地点「${place.name}」")
         entityManager.flush()
         return place.toResponse()
@@ -364,6 +370,9 @@ class TripService(
         notes = notes,
         backupOption = backupOption,
         mapLink = mapLink,
+        rating = rating,
+        avgCost = avgCost,
+        openTime = openTime,
         sortOrder = sortOrder,
         createdById = createdBy?.id,
         createdByName = createdBy?.displayName,

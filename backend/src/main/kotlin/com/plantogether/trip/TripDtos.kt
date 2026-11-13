@@ -66,6 +66,10 @@ data class PlaceRequest(
     val notes: String? = null,
     val backupOption: String? = null,
     val mapLink: String? = null,
+    /** 从高德带回来的评分、人均、营业时间（可空，用户手填地点时一般没有）。 */
+    val rating: String? = null,
+    val avgCost: String? = null,
+    val openTime: String? = null,
     val sortOrder: Int = 0,
     val version: Int? = null,
 )
@@ -84,6 +88,9 @@ data class PlaceResponse(
     val notes: String?,
     val backupOption: String?,
     val mapLink: String?,
+    val rating: String?,
+    val avgCost: String?,
+    val openTime: String?,
     val sortOrder: Int,
     val createdById: Long?,
     val createdByName: String?,

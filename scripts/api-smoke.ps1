@@ -307,6 +307,48 @@ Check "退出后无法再访问(403)" ($afterLeave.Status -eq 403) "status=$($af
 $leaveAgain = Invoke-Api DELETE "/api/trips/$tripId/members/me" $null $tokenC
 Check "重复退出返回 404" ($leaveAgain.Status -eq 404) "status=$($leaveAgain.Status)"
 
+Write-Host "`n== 错误提示说人话 ==" -ForegroundColor Cyan
+# 日期格式写错，以前会 500 + 英文堆栈；现在应该是 400 + 中文提示
+$badFormat = Invoke-Api POST "/api/trips" @{ title = "日期格式错"; startDate = "2026/11/07" } $tokenA
+Check "日期格式错返回 400（不是 500）" ($badFormat.Status -eq 400) "status=$($badFormat.Status) body=$($badFormat.Text)"
+Check "日期格式错的提示是中文" ($badFormat.Json.error -match "日期") "error=$($badFormat.Json.error)"
+Check "错误响应不含英文堆栈" ($badFormat.Text -notmatch "Exception|at com\.") "body=$($badFormat.Text)"
+
+$badNumber = Invoke-Api POST "/api/trips" @{ title = "人数不是数字"; groupSize = "很多人" } $tokenA
+Check "人数填非数字返回 400" ($badNumber.Status -eq 400) "status=$($badNumber.Status) body=$($badNumber.Text)"
+
+Write-Host "`n== 高德 POI / 地点评分快照 ==" -ForegroundColor Cyan
+$anonPoi = Invoke-Api GET "/api/poi/search?q=%E8%A5%BF%E6%B9%96" $null $null
+Check "未登录不能搜 POI(401)" ($anonPoi.Status -eq 401) "status=$($anonPoi.Status)"
+
+$poi = Invoke-Api GET "/api/poi/search?q=%E8%A5%BF%E6%B9%96&city=%E6%9D%AD%E5%B7%9E" $null $tokenA
+Check "POI 搜索返回 200" ($poi.Status -eq 200) "status=$($poi.Status) body=$($poi.Text)"
+# 没配 Key 是正常状态（configured=false + 中文说明），不该报错
+Check "POI 带 configured 标志" ($null -ne $poi.Json.configured) "body=$($poi.Text)"
+if ($poi.Json.configured -eq $true -and @($poi.Json.items).Count -gt 0) {
+    $first = @($poi.Json.items)[0]
+    Check "POI 结果带名称" (-not [string]::IsNullOrWhiteSpace($first.name)) "name=$($first.name)"
+    Check "POI 结果带经纬度" ($null -ne $first.latitude -and $null -ne $first.longitude) "lat=$($first.latitude) lng=$($first.longitude)"
+} else {
+    Check "未配 Key 时给出中文说明" (-not [string]::IsNullOrWhiteSpace($poi.Json.message)) "message=$($poi.Json.message)"
+}
+
+$emptyQ = Invoke-Api GET "/api/poi/search?q=" $null $tokenA
+Check "空关键词不报错" ($emptyQ.Status -eq 200 -or $emptyQ.Status -eq 400) "status=$($emptyQ.Status)"
+
+# 评分快照存下来之后要能原样读回来
+$rated = Invoke-Api POST "/api/trips/$tripId/places" @{
+    name         = "知味观"
+    address      = "仁和路83号"
+    rating       = "4.3"
+    avgCost      = "85.00"
+    openTime     = "09:00-21:00"
+} $tokenA
+Check "地点可带评分快照保存" ($rated.Status -eq 201 -and $rated.Json.rating -eq "4.3") "status=$($rated.Status) body=$($rated.Text)"
+Check "人均与营业时间也能存" ($rated.Json.avgCost -eq "85.00" -and $rated.Json.openTime -eq "09:00-21:00") "body=$($rated.Text)"
+Check "评分快照落地后能读回" (@($(Invoke-Api GET "/api/trips/$tripId/places" $null $tokenA).Json | Where-Object { $_.id -eq $rated.Json.id }).rating -eq "4.3")
+$null = Invoke-Api DELETE "/api/trips/$tripId/places/$($rated.Json.id)" $null $tokenA
+
 Write-Host "`n== 删除行程级联清理 ==" -ForegroundColor Cyan
 $trip2 = Invoke-Api POST "/api/trips" @{ title = "待删除的行程" } $tokenA
 $t2 = $trip2.Json.id

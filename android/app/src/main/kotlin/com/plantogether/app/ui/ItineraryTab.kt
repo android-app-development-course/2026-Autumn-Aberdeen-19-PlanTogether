@@ -141,6 +141,8 @@ fun ItineraryTab(
     if (showAdd || editing != null) {
         PlaceEditorDialog(
             initial = editing,
+            viewModel = viewModel,
+            city = trip?.destination,
             onDismiss = {
                 showAdd = false
                 editing = null
@@ -281,6 +283,10 @@ private fun PlaceCard(
                 Spacer(Modifier.height(4.dp))
                 Text("备注：$it", style = MaterialTheme.typography.bodySmall)
             }
+            if (!place.rating.isNullOrBlank() || !place.avgCost.isNullOrBlank() || !place.openTime.isNullOrBlank()) {
+                Spacer(Modifier.height(4.dp))
+                RatingSummary(place.rating, place.avgCost, place.openTime)
+            }
             place.backupOption?.takeIf { it.isNotBlank() }?.let {
                 Spacer(Modifier.height(2.dp))
                 Text(
@@ -342,9 +348,34 @@ fun EmptyHint(text: String) {    Box(
     }
 }
 
+/**
+ * 高德带过来的评分 / 人均 / 营业时间，一行小字。
+ *
+ * 用中性色而不是高饱和色：这些是参考信息，不该抢走「几点到、花多少钱」的注意力。
+ */
+@Composable
+private fun RatingSummary(rating: String?, avgCost: String?, openTime: String?) {
+    val parts = buildList {
+        rating?.takeIf { it.isNotBlank() }?.let { add("★ $it") }
+        avgCost?.takeIf { it.isNotBlank() && it != "0.00" }?.let { add("人均 ¥$it") }
+        openTime?.takeIf { it.isNotBlank() }?.let { add("营业 $it") }
+    }
+    if (parts.isEmpty()) return
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            parts.joinToString(" · "),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 @Composable
 private fun PlaceEditorDialog(
     initial: PlaceResponse?,
+    viewModel: TripDetailViewModel,
+    city: String?,
     onDismiss: () -> Unit,
     onSave: (PlaceRequest) -> Unit,
 ) {
@@ -362,6 +393,9 @@ private fun PlaceEditorDialog(
     var notes by remember(initial) { mutableStateOf(initial?.notes.orEmpty()) }
     var backup by remember(initial) { mutableStateOf(initial?.backupOption.orEmpty()) }
     var mapLink by remember(initial) { mutableStateOf(initial?.mapLink.orEmpty()) }
+    var rating by remember(initial) { mutableStateOf(initial?.rating.orEmpty()) }
+    var avgCost by remember(initial) { mutableStateOf(initial?.avgCost.orEmpty()) }
+    var openTime by remember(initial) { mutableStateOf(initial?.openTime.orEmpty()) }
     var tried by remember { mutableStateOf(false) }
 
     val latitudeResult = parseOptionalNumber(latitude)
@@ -388,6 +422,25 @@ private fun PlaceEditorDialog(
                         .heightIn(max = 420.dp)
                         .verticalScroll(rememberScrollState()),
                 ) {
+                    PoiSearchSection(
+                        viewModel = viewModel,
+                        city = city,
+                        onPick = { item ->
+                            // 只填「能从高德确认」的字段，用户已经写的备注、预算、时间一律不动
+                            name = item.name
+                            item.address?.let { address = it }
+                            item.latitude?.let { latitude = it.toString() }
+                            item.longitude?.let { longitude = it.toString() }
+                            item.rating?.let { rating = it }
+                            item.avgCost?.let { avgCost = it }
+                            item.openTimeToday?.let { openTime = it }
+                        },
+                    )
+                    if (rating.isNotBlank() || avgCost.isNotBlank() || openTime.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        RatingSummary(rating, avgCost, openTime)
+                        Spacer(Modifier.height(8.dp))
+                    }
                     OutlinedTextField(
                         name,
                         { name = it },
@@ -513,6 +566,9 @@ private fun PlaceEditorDialog(
                                     notes = notes.trim().ifBlank { null },
                                     backupOption = backup.trim().ifBlank { null },
                                     mapLink = mapLink.trim().ifBlank { null },
+                                    rating = rating.trim().ifBlank { null },
+                                    avgCost = avgCost.trim().ifBlank { null },
+                                    openTime = openTime.trim().ifBlank { null },
                                     sortOrder = initial?.sortOrder ?: 0,
                                     version = initial?.version,
                                 ),
