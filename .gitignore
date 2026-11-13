@@ -1,0 +1,17 @@
+# Build outputs
+build/
+.gradle/
+.kotlin/
+*.iml
+.idea/
+local.properties
+
+# Runtime data (H2 file database)
+backend/data/
+
+# Local tooling & screenshots
+.tools/
+*.log
+
+# Packaged artifacts (source zip / debug apk)
+dist/
