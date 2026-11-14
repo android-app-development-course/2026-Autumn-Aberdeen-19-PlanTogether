@@ -67,9 +67,15 @@ fun ItineraryTab(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             if (places.isEmpty()) {
-                EmptyHint("行程还是空的。把大家想去的地方一个个加进来，再按天排好顺序。")
+                EmptyState(
+                    title = "行程还是空的",
+                    hint = "把大家想去的地方一个个加进来，再按天排好顺序。",
+                    icon = "🗺",
+                    modifier = Modifier.padding(horizontal = 0.dp),
+                )
             }
             if (canWrite && places.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
                 Text(
                     "长按地点可以拖动排序",
                     style = MaterialTheme.typography.labelSmall,
@@ -77,28 +83,21 @@ fun ItineraryTab(
                 )
             }
             groups.forEach { group ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp, bottom = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        group.label,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f),
-                    )
-                    val dayTotal = group.places.mapNotNull { it.budget }.sum()
-                    if (dayTotal > 0) {
-                        Text(
-                            formatMoney(dayTotal) ?: "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+                val dayTotal = group.places.mapNotNull { it.budget }.sum()
+                SectionLabel(
+                    text = group.label,
+                    modifier = Modifier.padding(top = 20.dp, bottom = 8.dp),
+                    trailing = {
+                        if (dayTotal > 0) {
+                            Pill(
+                                formatMoney(dayTotal) ?: "",
+                                container = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                bold = true,
+                            )
+                        }
+                    },
+                )
                 ReorderablePlaceList(
                     places = group.places,
                     enabled = canWrite,
@@ -127,8 +126,10 @@ fun ItineraryTab(
                 onClick = { showAdd = true },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            ) { Text("添加地点") }
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .height(50.dp),
+                shape = MaterialTheme.shapes.medium,
+            ) { Text("＋ 添加地点", style = MaterialTheme.typography.titleSmall) }
         } else {
             Text(
                 "你是只读成员，可以查看行程但不能修改。",
@@ -222,35 +223,30 @@ private fun PlaceCard(
 ) {
     val context = LocalContext.current
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isDragging) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 8.dp else 0.dp),
+    AppCard(
+        modifier = Modifier.padding(vertical = 5.dp),
+        container = if (isDragging) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        borderColor = if (isDragging) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.outlineVariant
+        },
     ) {
-        Column(Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.primary,
-                ) {
-                    Text(
-                        "$index",
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                }
-                Spacer(Modifier.width(8.dp))
+        Column(Modifier.padding(14.dp)) {
+            // 头行：序号 + 名称/时间 + 金额
+            Row(verticalAlignment = Alignment.Top) {
+                NumberBadge("$index")
+                Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(place.name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        place.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
                     val timeLabel = buildString {
                         if (!place.startTime.isNullOrBlank()) append(place.startTime)
                         if (!place.endTime.isNullOrBlank()) {
@@ -263,47 +259,71 @@ private fun PlaceCard(
                         }
                     }
                     if (timeLabel.isNotBlank()) {
-                        Text(
-                            timeLabel,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
+                        Spacer(Modifier.height(3.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Pill(
+                                timeLabel,
+                                container = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
                     }
                 }
-                formatMoney(place.budget)?.let {
-                    Text(it, style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.width(8.dp))
+                PriceTag(place.budget)
+            }
+
+            // 细节行
+            val hasDetails = !place.address.isNullOrBlank() || !place.notes.isNullOrBlank() ||
+                !place.rating.isNullOrBlank() || !place.avgCost.isNullOrBlank() ||
+                !place.openTime.isNullOrBlank() || !place.backupOption.isNullOrBlank()
+            if (hasDetails) {
+                Spacer(Modifier.height(10.dp))
+                place.address?.takeIf { it.isNotBlank() }?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                place.notes?.takeIf { it.isNotBlank() }?.let {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (!place.rating.isNullOrBlank() || !place.avgCost.isNullOrBlank() || !place.openTime.isNullOrBlank()) {
+                    Spacer(Modifier.height(6.dp))
+                    RatingSummary(place.rating, place.avgCost, place.openTime)
+                }
+                place.backupOption?.takeIf { it.isNotBlank() }?.let {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        "备选：$it",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 
-            place.address?.takeIf { it.isNotBlank() }?.let {
-                Spacer(Modifier.height(4.dp))
-                Text(it, style = MaterialTheme.typography.bodySmall)
-            }
-            place.notes?.takeIf { it.isNotBlank() }?.let {
-                Spacer(Modifier.height(4.dp))
-                Text("备注：$it", style = MaterialTheme.typography.bodySmall)
-            }
-            if (!place.rating.isNullOrBlank() || !place.avgCost.isNullOrBlank() || !place.openTime.isNullOrBlank()) {
-                Spacer(Modifier.height(4.dp))
-                RatingSummary(place.rating, place.avgCost, place.openTime)
-            }
-            place.backupOption?.takeIf { it.isNotBlank() }?.let {
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    "备选：$it",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(Modifier.height(2.dp))
+            // 次要动作行：看点评 / 地图 靠左，谁加的靠右
+            Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onLookup) { Text("看点评") }
+                TextButton(
+                    onClick = onLookup,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                ) { Text("看点评", style = MaterialTheme.typography.labelLarge) }
                 if (!place.mapLink.isNullOrBlank()) {
-                    TextButton(onClick = {
-                        runCatching {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(place.mapLink)))
-                        }
-                    }) { Text("地图") }
+                    TextButton(
+                        onClick = {
+                            runCatching {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(place.mapLink)))
+                            }
+                        },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    ) { Text("地图", style = MaterialTheme.typography.labelLarge) }
                 }
                 Spacer(Modifier.weight(1f))
                 place.createdByName?.let {
@@ -316,16 +336,36 @@ private fun PlaceCard(
             }
 
             if (canWrite) {
-                HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                Spacer(Modifier.height(4.dp))
+                SoftDivider()
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextButton(onClick = onMoveUp) { Text("↑") }
-                    TextButton(onClick = onMoveDown) { Text("↓") }
-                    TextButton(onClick = onEdit) { Text("编辑") }
-                    TextButton(onClick = onDelete) {
-                        Text("删除", color = MaterialTheme.colorScheme.error)
+                    // 上下移保留文字箭头（拖动之外的手动微调），弱化成小号
+                    TextButton(
+                        onClick = onMoveUp,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                    ) { Text("↑", style = MaterialTheme.typography.labelLarge) }
+                    TextButton(
+                        onClick = onMoveDown,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                    ) { Text("↓", style = MaterialTheme.typography.labelLarge) }
+                    Spacer(Modifier.width(4.dp))
+                    TextButton(
+                        onClick = onEdit,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                    ) { Text("编辑", style = MaterialTheme.typography.labelLarge) }
+                    TextButton(
+                        onClick = onDelete,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            "删除",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.error,
+                        )
                     }
                 }
             }
@@ -334,7 +374,8 @@ private fun PlaceCard(
 }
 
 @Composable
-fun EmptyHint(text: String) {    Box(
+fun EmptyHint(text: String) {
+    Box(
         Modifier
             .fillMaxWidth()
             .padding(vertical = 32.dp),

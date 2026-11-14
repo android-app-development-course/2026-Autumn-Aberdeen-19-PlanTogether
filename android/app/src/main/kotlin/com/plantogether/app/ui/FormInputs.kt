@@ -64,6 +64,7 @@ fun DateField(
                 value = value,
                 onValueChange = {},
                 readOnly = true,
+                shape = MaterialTheme.shapes.medium,
                 label = { Text(label) },
                 placeholder = { Text("点击选择") },
                 singleLine = true,
@@ -123,6 +124,7 @@ fun TimeField(
                 value = value,
                 onValueChange = {},
                 readOnly = true,
+                shape = MaterialTheme.shapes.medium,
                 label = { Text(label) },
                 placeholder = { Text("点击选择") },
                 singleLine = true,
@@ -248,6 +250,7 @@ fun ValidatedField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
+        shape = MaterialTheme.shapes.medium,
         label = { Text(label) },
         isError = error != null,
         supportingText = if (error != null) {

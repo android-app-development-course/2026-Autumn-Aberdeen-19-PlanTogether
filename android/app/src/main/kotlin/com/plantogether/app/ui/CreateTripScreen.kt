@@ -1,6 +1,9 @@
 package com.plantogether.app.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -55,97 +59,137 @@ fun CreateTripScreen(
     val canSubmit = title.isNotBlank() && dateRangeError == null &&
         groupSizeResult.errorOf() == null && budgetResult.errorOf() == null
 
-    Column(
-        modifier = Modifier
+    Box(
+        Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .background(MaterialTheme.colorScheme.background),
     ) {
-        TextButton(onClick = { viewModel.resetCreateState(); onDone() }) { Text("← 返回") }
-        Spacer(Modifier.height(8.dp))
-        Text("新建行程", style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(24.dp))
-
-        OutlinedTextField(
-            value = title,
-            onValueChange = { title = it },
-            label = { Text("行程标题 *") },
-            isError = tried && title.isBlank(),
-            supportingText = if (tried && title.isBlank()) {
-                { Text("给这趟旅行起个名字，比如「周末去杭州」") }
-            } else {
-                null
-            },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = destination,
-            onValueChange = { destination = it },
-            label = { Text("目的地") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(12.dp))
-
-        DateField(startDate, { startDate = it }, "开始日期")
-        Spacer(Modifier.height(12.dp))
-
-        DateField(endDate, { endDate = it }, "结束日期")
-        if (dateRangeError != null) {
-            Text(
-                dateRangeError,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-
-        ValidatedField(
-            value = groupSize,
-            onValueChange = { groupSize = it },
-            label = "人数（可选）",
-            error = if (tried) groupSizeResult.errorOf() else null,
-            keyboardOptions = numberKeyboard(integerOnly = true),
-        )
-        Spacer(Modifier.height(12.dp))
-
-        ValidatedField(
-            value = budgetTarget,
-            onValueChange = { budgetTarget = it },
-            label = "总预算 ¥（可选）",
-            error = if (tried) budgetResult.errorOf() else null,
-            keyboardOptions = numberKeyboard(),
-        )
-        Spacer(Modifier.height(20.dp))
-
-        if (serverError != null) {
-            Text(serverError, color = MaterialTheme.colorScheme.error)
-            Spacer(Modifier.height(8.dp))
-        }
-
-        Button(
-            onClick = {
-                tried = true
-                if (!canSubmit) return@Button
-                viewModel.createTrip(
-                    TripRequest(
-                        title = title.trim(),
-                        destination = destination.trim().ifBlank { null },
-                        startDate = startDate.ifBlank { null },
-                        endDate = endDate.ifBlank { null },
-                        groupSize = groupSizeResult.orNull()?.toInt(),
-                        budgetTarget = budgetResult.orNull(),
-                    )
-                )
-            },
-            enabled = !loading,
-            modifier = Modifier.fillMaxWidth(),
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 16.dp),
         ) {
-            Text(if (loading) "创建中..." else "创建")
+            TextButton(
+                onClick = { viewModel.resetCreateState(); onDone() },
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+            ) { Text("‹ 返回", style = MaterialTheme.typography.labelLarge) }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "新建行程",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "名字先随便起，之后随时能改。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(18.dp))
+
+            AppCard {
+                Column(Modifier.padding(18.dp)) {
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text("行程标题 *") },
+                        isError = tried && title.isBlank(),
+                        supportingText = if (tried && title.isBlank()) {
+                            { Text("给这趟旅行起个名字，比如「周末去杭州」") }
+                        } else {
+                            null
+                        },
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = destination,
+                        onValueChange = { destination = it },
+                        label = { Text("目的地") },
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+                    DateField(startDate, { startDate = it }, "开始日期")
+                    Spacer(Modifier.height(12.dp))
+
+                    DateField(endDate, { endDate = it }, "结束日期")
+                    if (dateRangeError != null) {
+                        Text(
+                            dateRangeError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+
+                    ValidatedField(
+                        value = groupSize,
+                        onValueChange = { groupSize = it },
+                        label = "人数（可选）",
+                        error = if (tried) groupSizeResult.errorOf() else null,
+                        keyboardOptions = numberKeyboard(integerOnly = true),
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+                    ValidatedField(
+                        value = budgetTarget,
+                        onValueChange = { budgetTarget = it },
+                        label = "总预算 ¥（可选）",
+                        error = if (tried) budgetResult.errorOf() else null,
+                        keyboardOptions = numberKeyboard(),
+                    )
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+
+            if (serverError != null) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        serverError,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(12.dp),
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
+            Button(
+                onClick = {
+                    tried = true
+                    if (!canSubmit) return@Button
+                    viewModel.createTrip(
+                        TripRequest(
+                            title = title.trim(),
+                            destination = destination.trim().ifBlank { null },
+                            startDate = startDate.ifBlank { null },
+                            endDate = endDate.ifBlank { null },
+                            groupSize = groupSizeResult.orNull()?.toInt(),
+                            budgetTarget = budgetResult.orNull(),
+                        )
+                    )
+                },
+                enabled = !loading,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+            ) {
+                Text(if (loading) "创建中…" else "创建行程", style = MaterialTheme.typography.titleSmall)
+            }
+            Spacer(Modifier.height(24.dp))
         }
-        Spacer(Modifier.height(24.dp))
     }
 }

@@ -55,27 +55,35 @@ fun BudgetTab(
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text("已计划支出", style = MaterialTheme.typography.labelMedium)
-                Text(
-                    formatMoney(planned) ?: "¥0",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                )
+        AppCard(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(18.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "已计划支出",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Pill("$headcount 人", container = MaterialTheme.colorScheme.primaryContainer)
+                }
                 Spacer(Modifier.height(4.dp))
+                PriceTag(planned, emphasize = true)
+                Spacer(Modifier.height(2.dp))
                 Text(
-                    "按 $headcount 人摊，人均 ${formatMoney(planned / headcount)}",
+                    "人均 ${formatMoney(planned / headcount)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 if (target != null && target > 0) {
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(14.dp))
                     val fraction = (planned / target).coerceIn(0.0, 1.0).toFloat()
                     LinearProgressIndicator(
                         progress = { fraction },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp),
+                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
                     )
                     Spacer(Modifier.height(4.dp))
                     val diff = target - planned
@@ -107,81 +115,99 @@ fun BudgetTab(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-        Text("按天拆分", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(18.dp))
+        SectionLabel("按天拆分")
+        Spacer(Modifier.height(6.dp))
         val groups = groupPlaces(places, trip)
         if (groups.isEmpty()) {
             Text(
                 "还没有地点，先去「行程」里添加吧。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 6.dp),
             )
         } else {
-            groups.forEach { group ->
-                val dayTotal = group.places.mapNotNull { it.budget }.sum()
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(group.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    Text(
-                        formatMoney(dayTotal) ?: "—",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (dayTotal > 0) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
+            AppCard(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(vertical = 4.dp)) {
+                    groups.forEachIndexed { index, group ->
+                        val dayTotal = group.places.mapNotNull { it.budget }.sum()
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                group.label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                formatMoney(dayTotal) ?: "—",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (dayTotal > 0) {
+                                    MaterialTheme.colorScheme.secondary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                fontWeight = if (dayTotal > 0) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        }
+                        if (index < groups.lastIndex) SoftDivider(Modifier.padding(horizontal = 16.dp))
+                    }
                 }
-                HorizontalDivider()
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-        Text("费用明细", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(18.dp))
+        SectionLabel("费用明细")
+        Spacer(Modifier.height(6.dp))
         val withBudget = places.filter { it.budget != null }.sortedBy { it.sortOrder }
         if (withBudget.isEmpty()) {
             Text(
                 "还没有任何地点填了预算。编辑地点时可以填一个大概金额。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 6.dp),
             )
         } else {
-            withBudget.forEach { place ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(place.name, style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            formatDayLabel(place.date, trip?.startDate),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+            AppCard(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(vertical = 4.dp)) {
+                    withBudget.forEachIndexed { index, place ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(place.name, style = MaterialTheme.typography.bodyLarge)
+                                Spacer(Modifier.height(1.dp))
+                                Text(
+                                    formatDayLabel(place.date, trip?.startDate),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            PriceTag(place.budget)
+                        }
+                        if (index < withBudget.lastIndex) SoftDivider(Modifier.padding(horizontal = 16.dp))
                     }
-                    Text(formatMoney(place.budget) ?: "", style = MaterialTheme.typography.bodyMedium)
                 }
-                HorizontalDivider()
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(18.dp))
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = MaterialTheme.shapes.medium,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
                 "这里的金额全部由成员手动填写，不包含实时票价、汇率或任何平台报价。",
                 style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.padding(10.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(12.dp),
             )
         }
         Spacer(Modifier.height(24.dp))

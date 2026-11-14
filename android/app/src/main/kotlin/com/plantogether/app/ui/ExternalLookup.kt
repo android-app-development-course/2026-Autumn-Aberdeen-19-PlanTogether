@@ -123,16 +123,16 @@ fun LookupSheet(
             if (hasLocal) {
                 Spacer(Modifier.height(10.dp))
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = MaterialTheme.shapes.medium,
                 ) {
-                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             place.rating?.takeIf { it.isNotBlank() }?.let {
                                 Text(
                                     "★ $it",
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 )
                                 Spacer(Modifier.width(10.dp))
                             }
@@ -140,7 +140,7 @@ fun LookupSheet(
                                 Text(
                                     "人均 ¥$it",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
                                 )
                             }
                         }
@@ -149,25 +149,21 @@ fun LookupSheet(
                             Text(
                                 "营业时间 $it",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
                             )
                         }
                         Spacer(Modifier.height(4.dp))
                         Text(
                             "来自高德地图",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.55f),
                         )
                     }
                 }
             }
 
             Spacer(Modifier.height(12.dp))
-            Text(
-                "看真实食客怎么说",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            SectionLabel("看真实食客怎么说")
             Spacer(Modifier.height(4.dp))
 
             LookupRow(

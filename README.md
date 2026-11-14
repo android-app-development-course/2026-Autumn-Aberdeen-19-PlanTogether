@@ -72,10 +72,9 @@ D:\PlanTogether\
 │       │       ├── PoiPicker.kt                ← 搜店名自动补全（高德 POI）
 │       │       ├── ChatImportScreen.kt         ← 聊天记录导入预览页（逐条勾选）
 │       │       ├── ChatImportViewModel.kt      ← 导入流程：解析 → 勾选 → 写入行程
-│       │       ├── FormInputs.kt               ← 日期/时间选择器、输入校验
-│       │       ├── ServerSettingsDialog.kt     ← 服务器地址设置
 │       │       ├── SaveLinkDialog.kt           ← 分享进来的链接选行程保存
-│       │       └── theme\Theme.kt
+│       │       ├── theme\Theme.kt           ← 配色 / 圆角 / 字号 / 金额样式（设计系统）
+│       │       └── UIKit.kt                   ← 共用小组件：AppCard / Pill / PriceTag / EmptyState / SectionLabel
 │       └── res\                                ← 图标/字符串/主题资源
 │   └── src\test\kotlin\...\ChatTranscriptParserTest.kt  ← 聊天解析/抽取的单元测试（18 例）
 └── .tools\                    ← 开发工具（Gradle、AEHD 驱动、截图）
@@ -196,6 +195,24 @@ powershell -ExecutionPolicy Bypass -File scripts\api-smoke.ps1
   不会静默把值丢掉；数字栏位自动弹数字键盘
 - ✅ **下拉刷新**：行程列表、行程详情页的每个页签都支持下拉刷新（下拉失败不清空已有内容）
 - ✅ **后端错误说中文**：日期/数字格式错、缺参数、服务器内部异常都有可读提示，不再返回英文技术细节或堆栈
+
+### 界面（第九轮重做）
+原来只有一个 `primary` 蓝，加一堆散落的 `RoundedCornerShape`（8dp/10dp/12dp/16dp 混用），
+没有圆角规范和字号规范，一屏里什么都在抢注意力。第九轮把设计系统重建了一遍：
+
+- ✅ **配色**：深海水青 `#0F6E6E` 做主色，暖米色 `#FFFBF3` 做底（不是纯白），
+  珊瑚 `#D2694C` **只给金额和冲突提示**。一屏里只有一个暖色落点，钱在哪一眼就看到
+- ✅ **圆角与字号**：`AppShapes` 五档（8/12/16/22/28dp）统一收口，裸 `RoundedCornerShape`
+  只剩二维码白底这类特例；标题全部加粗 + 负字距，正文行高放宽（21–24sp）
+- ✅ **共用组件库 `UIKit.kt`**：`AppCard`（白底 + 1dp 极细描边，比 Material `Card` 更轻）、
+  `Pill`（胶囊徽章）、`PriceTag`（金额统一珊瑚色加粗）、`SectionLabel`（左侧 3dp 色条的小标题）、
+  `EmptyState`（空态统一版式）、`SoftDivider`、`DestinationBadge`（用目的地首字当卡片封面色块）、
+  `NumberBadge`、`MetaLine`、`ScreenHeader`
+- ✅ **每屏只有一个主按钮**：整宽 52dp 色块；其余操作退成小号文字按钮，不再和主按钮抢位置
+- ✅ **列表页顶栏收口**：原来四个 `TextButton`（刷新/加入/新建/退出）平铺在标题右边，
+  现在合成一个「更多」菜单，刷新改成下拉
+- ✅ **地点卡变成真正的卡片**：圆形序号 + 名称 + 时间段胶囊 + 金额靠右 + 次要动作行 + 分割线 + 编辑删除
+- ✅ 地图、投票、清单、预算、讨论、链接、登录、新建行程、聊天导入**逐屏套用**同一套视觉
 
 ## 四之一、从微信群聊记录生成行程
 
@@ -351,6 +368,7 @@ GET    /api/health                         → { status: "ok", service: "..." }
 | 想改什么 | 文件 |
 |---------|------|
 | 主题色/配色 | `android\...\ui\theme\Theme.kt` |
+| 圆角/字号/共用组件 | `android\...\ui\UIKit.kt`（AppCard / Pill / PriceTag / EmptyState…） |
 | 某个页签的布局 | `android\...\ui\<Xxx>Tab.kt` |
 | 行程详情的外壳/顶部菜单 | `android\...\ui\TripDetailScreen.kt` |
 | 某个功能的读写逻辑 | `android\...\ui\TripDetailViewModel.kt` |
@@ -375,11 +393,13 @@ GET    /api/health                         → { status: "ok", service: "..." }
 - 未读红点是「详情页的红点 + 列表圆点」，不区分具体谁改的，也没有角标数字
 - 并发保护是"检测冲突 + 提示刷新"，不是自动合并；两人改同一字段时后提交的一方需要重新编辑
 - 无图片/封面、无模板、无离线缓存、无分页
+- 没有图标库，界面里的图标是文字符号和色块拼的（`‹ 返回`、`＋ 添加`、`↑ ↓`）
 - 后端仍是 H2 文件库 + 开发用 JWT 密钥（`application.yml`），上线前必须换 PostgreSQL + 强随机密钥，并补 Flyway 迁移
 
 ## 九、下一步可以做什么
 
-1. **体验细节**：空状态插画、列表虚拟化（当前行程页用普通 Column 以支持拖拽）、更细的离线提示
+1. **体验细节**：插画式空态（现在是文字符号）、列表虚拟化（当前行程页用普通 Column 以支持拖拽）、更细的离线提示
+1.2 **换成真图标**：现在没有引入图标库，界面上的图标都用文字符号（`‹`、`＋`、`↑↓`）和色块凑。接 `material-icons-extended` 或自绘 SVG 后观感还能上一档
 1.5 **聊天导入更进一步**：把规则换成「规则打底 + 本地小模型兜底」，处理写得更随意的群聊；
    导入后生成一段行程摘要，一键发回微信群（顺带带邀请码，是自然的拉人入口）
 2. **点评数据加深**：高德只给评分/人均，不给评价正文。可以做一个「点评/美团链接自动识别店名」的粘贴框，

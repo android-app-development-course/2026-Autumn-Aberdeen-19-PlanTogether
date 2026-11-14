@@ -57,6 +57,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -140,6 +141,9 @@ fun TripDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
                 title = {
                     Text(
                         trip?.title ?: "行程详情",
@@ -147,7 +151,11 @@ fun TripDetailScreen(
                         overflow = TextOverflow.Ellipsis,
                     )
                 },
-                navigationIcon = { TextButton(onClick = onBack) { Text("← 返回") } },
+                navigationIcon = {
+                    TextButton(onClick = onBack) {
+                        Text("‹ 返回", style = MaterialTheme.typography.bodyLarge)
+                    }
+                },
                 actions = {
                     TextButton(onClick = { showMembers = true }) { Text("成员") }
                     Box {
@@ -198,6 +206,7 @@ fun TripDetailScreen(
                 },
             )
         },
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Column(
@@ -212,7 +221,12 @@ fun TripDetailScreen(
                 onShowActivity = { showMembers = true },
             )
 
-            PrimaryScrollableTabRow(selectedTabIndex = tab, edgePadding = 8.dp) {
+            PrimaryScrollableTabRow(
+                selectedTabIndex = tab,
+                edgePadding = 12.dp,
+                containerColor = MaterialTheme.colorScheme.background,
+                divider = {},
+            ) {
                 tripTabs.forEachIndexed { index, label ->
                     Tab(
                         selected = tab == index,
@@ -342,58 +356,88 @@ private fun TripHeader(
     onOpenInvite: () -> Unit,
     onShowActivity: () -> Unit,
 ) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-    ) {
-        val destination = trip?.destination?.takeIf { it.isNotBlank() }
-        Text(
-            listOfNotNull(destination, tripDateRange(trip)).joinToString(" · "),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Spacer(Modifier.height(4.dp))
-        val roleText = trip?.let { "你是${roleLabel(it.role)}" } ?: ""
-        val people = trip?.let {
-            buildString {
-                append("${it.memberCount} 人已加入")
-                it.groupSize?.let { size -> append(" · 预计 $size 人") }
+    // 顶部信息块：目的地色块 + 日期 + 人数，邀请码是其中唯一可点的胶囊
+    AppCard(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                DestinationBadge(trip?.destination, size = 56)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        trip?.destination?.takeIf { it.isNotBlank() } ?: "还没定去哪",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        tripDateRange(trip),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        val people = trip?.let {
+                            buildString {
+                                append("${it.memberCount} 人已加入")
+                                it.groupSize?.let { size -> append("／预计 $size") }
+                            }
+                        }
+                        if (!people.isNullOrBlank()) {
+                            Pill(people, container = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                        trip?.let { Pill(roleLabel(it.role)) }
+                    }
+                }
             }
-        } ?: ""
-        Text(
-            listOf(people, roleText).filter { it.isNotBlank() }.joinToString(" · "),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
 
-        val code = trip?.inviteCode
-        if (trip?.isOwner == true && !code.isNullOrBlank()) {
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            val code = trip?.inviteCode
+            if (trip?.isOwner == true && !code.isNullOrBlank()) {
+                Spacer(Modifier.height(14.dp))
+                SoftDivider()
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "邀请码",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                    ) {
+                        Text(
+                            code,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = onOpenInvite) { Text("邀请队友") }
+                }
+            }
+
+            if (newActivityCount > 0) {
+                Spacer(Modifier.height(6.dp))
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = MaterialTheme.shapes.small,
                     color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.clickable(onClick = onShowActivity),
                 ) {
                     Text(
-                        "邀请码  $code",
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        style = MaterialTheme.typography.labelLarge,
+                        "有 $newActivityCount 条新动态 ›",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-                Spacer(Modifier.width(4.dp))
-                TextButton(onClick = onOpenInvite) { Text("邀请队友") }
             }
-        }
-
-        if (newActivityCount > 0) {
-            Spacer(Modifier.height(2.dp))
-            Text(
-                "有 $newActivityCount 条新动态 ›",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable(onClick = onShowActivity),
-            )
         }
     }
 }
@@ -428,8 +472,8 @@ private fun MembersSheet(
             val code = trip?.inviteCode
             if (trip?.isOwner == true && !code.isNullOrBlank()) {
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.padding(12.dp)) {
@@ -657,7 +701,7 @@ private fun MarkdownDialog(
             Modifier
                 .fillMaxWidth()
                 .heightIn(max = 360.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
                 .verticalScroll(rememberScrollState())
                 .padding(10.dp),
         ) {

@@ -1,7 +1,6 @@
 package com.plantogether.app.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -54,28 +54,81 @@ fun TripListScreen(
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val seen = seenMap.orEmpty()
     var showJoin by remember { mutableStateOf(false) }
+    var showMore by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.loadTrips() }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .background(MaterialTheme.colorScheme.background),
     ) {
+        // 标题区：左边是大标题，右边只留一个「更多」——不再把四个按钮平铺在标题旁边
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("我的行程", style = MaterialTheme.typography.headlineSmall)
-            Row {
-                TextButton(onClick = onChatImport) { Text("聊天导入") }
-                TextButton(onClick = { showJoin = true }) { Text("加入") }
-                TextButton(onClick = onCreateTrip) { Text("新建") }
-                TextButton(onClick = onLogout) { Text("退出") }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "我的行程",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+                val trips = (state as? MainViewModel.TripsState.Success)?.trips
+                Text(
+                    when {
+                        trips == null -> "正在同步…"
+                        trips.isEmpty() -> "还没有行程"
+                        else -> "${trips.size} 个行程 · 和队友一起改"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Box {
+                TextButton(onClick = { showMore = true }) { Text("更多") }
+                androidx.compose.material3.DropdownMenu(
+                    expanded = showMore,
+                    onDismissRequest = { showMore = false },
+                ) {
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text("从聊天记录导入") },
+                        onClick = {
+                            showMore = false
+                            onChatImport()
+                        },
+                    )
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text("用邀请码加入") },
+                        onClick = {
+                            showMore = false
+                            showJoin = true
+                        },
+                    )
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text("退出登录", color = MaterialTheme.colorScheme.error) },
+                        onClick = {
+                            showMore = false
+                            onLogout()
+                        },
+                    )
+                }
             }
         }
-        Spacer(Modifier.height(12.dp))
+
+        // 主行动：新建行程做成整宽按钮，是这一屏唯一的重色块
+        Button(
+            onClick = onCreateTrip,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .height(52.dp),
+            shape = MaterialTheme.shapes.medium,
+        ) {
+            Text("＋ 新建行程", style = MaterialTheme.typography.titleSmall)
+        }
 
         PullToRefreshBox(
             isRefreshing = refreshing,
@@ -89,33 +142,30 @@ fun TripListScreen(
                     }
 
                 is MainViewModel.TripsState.Error ->
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(s.message, color = MaterialTheme.colorScheme.error)
-                            TextButton(onClick = { viewModel.loadTrips() }) { Text("重试") }
-                            Text(
-                                "下拉也可以重试",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+                    EmptyState(
+                        title = s.message,
+                        hint = "下拉可以重试，或者点上面的按钮新建一个。",
+                        icon = "!",
+                    )
 
                 is MainViewModel.TripsState.Success ->
                     if (s.trips.isEmpty()) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("还没有行程")
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    "点右上角「新建」，或者用队友发来的邀请码「加入行程」",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
+                        EmptyState(
+                            title = "还没有行程",
+                            hint = "新建一个，或者用队友发来的邀请码加入。",
+                            icon = "✈",
+                        )
                     } else {
-                        LazyColumn(Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            Modifier.fillMaxSize(),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                start = 20.dp,
+                                end = 20.dp,
+                                top = 4.dp,
+                                bottom = 24.dp,
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
                             items(s.trips) { trip ->
                                 TripCard(
                                     trip = trip,
@@ -146,59 +196,44 @@ fun TripListScreen(
 
 @Composable
 private fun TripCard(trip: TripResponse, hasUnseen: Boolean, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clickable(onClick = onClick),
-    ) {
+    AppCard(onClick = onClick) {
         Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (hasUnseen) {
-                    Box(
-                        Modifier
-                            .size(8.dp)
-                            .background(MaterialTheme.colorScheme.error, CircleShape),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                }
-                Text(
-                    trip.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                if (!trip.isOwner) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                    ) {
+            Row(verticalAlignment = Alignment.Top) {
+                DestinationBadge(trip.destination, size = 52)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (hasUnseen) {
+                            Box(
+                                Modifier
+                                    .size(7.dp)
+                                    .background(MaterialTheme.colorScheme.secondary, CircleShape),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
                         Text(
-                            "队友的行程",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall,
+                            trip.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
                         )
+                    }
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        tripDateRange(trip),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Pill("${trip.memberCount} 人")
+                        Pill(roleLabel(trip.role))
+                        if (!trip.isOwner) Pill("队友的")
                     }
                 }
             }
-            if (!trip.destination.isNullOrBlank()) {
-                Text(trip.destination, style = MaterialTheme.typography.bodyMedium)
-            }
-            Text(
-                tripDateRange(trip),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(4.dp))
-            val meta = buildList {
-                add("${trip.memberCount} 人")
-                if (!trip.isOwner) add("创建者：${trip.ownerName}")
-                add(roleLabel(trip.role))
-            }
-            Text(
-                meta.joinToString(" · "),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
@@ -218,34 +253,41 @@ private fun JoinTripDialog(
     }
 
     Dialog(onDismissRequest = onDismiss) {
-        Surface(shape = MaterialTheme.shapes.large, tonalElevation = 6.dp) {
-            Column(Modifier.padding(20.dp)) {
-                Text("加入行程", style = MaterialTheme.typography.titleLarge)
-                Spacer(Modifier.height(8.dp))
+        Surface(shape = MaterialTheme.shapes.large, tonalElevation = 2.dp, color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.padding(22.dp)) {
+                Text("用邀请码加入", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(6.dp))
                 Text(
                     "输入队友分享给你的 8 位邀请码。",
                     style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
                     value = code,
                     onValueChange = { code = it.uppercase() },
                     label = { Text("邀请码") },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 (state as? MainViewModel.JoinState.Error)?.let {
                     Spacer(Modifier.height(8.dp))
-                    Text(it.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        it.message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(18.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) { Text("取消") }
                     Spacer(Modifier.width(8.dp))
                     val loading = state is MainViewModel.JoinState.Loading
-                    TextButton(
+                    Button(
                         onClick = { viewModel.joinTrip(code.trim()) },
                         enabled = code.isNotBlank() && !loading,
+                        shape = MaterialTheme.shapes.medium,
                     ) { Text(if (loading) "加入中…" else "加入") }
                 }
             }

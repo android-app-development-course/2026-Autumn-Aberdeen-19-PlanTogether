@@ -50,44 +50,63 @@ fun DiscussionTab(
         ) {
             if (comments.isEmpty()) {
                 item {
-                    EmptyHint("还没有人发言。把「想住哪边」「晚饭吃啥」这类问题丢进来，大家一起聊。")
+                    EmptyState(
+                        title = "还没有人发言",
+                        hint = "把「想住哪边」「晚饭吃啥」这类问题丢进来，大家一起聊。",
+                        icon = "💬",
+                    )
                 }
             }
             items(comments, key = { it.id }) { comment ->
-                Card(
-                    Modifier
+                AppCard(
+                    modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp),
                 ) {
-                    Column(Modifier.padding(12.dp)) {
+                    Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                comment.authorName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
+                            DestinationBadge(
+                                destination = comment.authorName,
+                                size = 30,
+                                tint = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                formatTimestamp(comment.createdAt),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(Modifier.weight(1f))
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    comment.authorName,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    formatTimestamp(comment.createdAt),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                             if (comment.canDelete) {
-                                TextButton(onClick = { viewModel.deleteComment(comment.id) }) {
-                                    Text("删除", style = MaterialTheme.typography.labelSmall)
+                                TextButton(
+                                    onClick = { viewModel.deleteComment(comment.id) },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                ) {
+                                    Text(
+                                        "删除",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
                                 }
                             }
                         }
                         comment.placeName?.let {
-                            Text(
+                            Spacer(Modifier.height(6.dp))
+                            Pill(
                                 "关于「$it」",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
+                                container = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
                         }
-                        Spacer(Modifier.height(4.dp))
-                        Text(comment.body, style = MaterialTheme.typography.bodyMedium)
+                        Spacer(Modifier.height(8.dp))
+                        Text(comment.body, style = MaterialTheme.typography.bodyLarge)
                     }
                 }
             }
@@ -108,18 +127,22 @@ fun DiscussionTab(
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("说点什么…") },
                     maxLines = 3,
+                    shape = MaterialTheme.shapes.medium,
                 )
                 Button(
                     onClick = {
                         viewModel.addComment(input.trim()) { input = "" }
                     },
                     enabled = input.isNotBlank(),
-                ) { Text("发送") }
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.height(52.dp),
+                ) { Text("发送", style = MaterialTheme.typography.labelLarge) }
             }
         } else {
             Text(
                 "你是只读成员，可以看讨论但不能发言。",
                 style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(16.dp),
             )
         }

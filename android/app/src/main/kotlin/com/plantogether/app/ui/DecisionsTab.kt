@@ -63,7 +63,11 @@ fun DecisionsTab(
         ) {
             if (decisions.isEmpty()) {
                 item {
-                    EmptyHint("还没有决策。遇到「去哪吃」「住哪个片区」这类分歧，发起一个投票让大家一起定。")
+                    EmptyState(
+                        title = "还没有决策",
+                        hint = "遇到「去哪吃」「住哪个片区」这类分歧，发起一个投票让大家一起定。",
+                        icon = "⇄",
+                    )
                 }
             }
             items(decisions, key = { it.id }) { decision ->
@@ -84,10 +88,15 @@ fun DecisionsTab(
         if (canWrite) {
             Button(
                 onClick = { showCreate = true },
+                shape = MaterialTheme.shapes.medium,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            ) { Text("发起新决策") }
+                    .height(50.dp)
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 10.dp),
+            ) {
+                Text("发起新决策", style = MaterialTheme.typography.titleSmall)
+            }
         }
     }
 
@@ -169,12 +178,12 @@ private fun DecisionCard(
         else -> MaterialTheme.colorScheme.onSecondaryContainer
     }
 
-    Card(
-        Modifier
+    AppCard(
+        modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp),
     ) {
-        Column(Modifier.padding(12.dp)) {
+        Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     decision.title,
@@ -182,14 +191,11 @@ private fun DecisionCard(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
-                Surface(shape = RoundedCornerShape(50), color = statusColor) {
-                    Text(
-                        statusText,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = statusTextColor,
-                    )
-                }
+                Pill(
+                    statusText,
+                    container = statusColor,
+                    contentColor = statusTextColor,
+                )
             }
             decision.notes?.takeIf { it.isNotBlank() }?.let {
                 Spacer(Modifier.height(4.dp))
@@ -206,14 +212,14 @@ private fun DecisionCard(
                     else -> MaterialTheme.colorScheme.surfaceVariant
                 }
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = MaterialTheme.shapes.medium,
                     color = container,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 3.dp)
                         .clickable(enabled = canWrite && !decision.isCancelled) { onVote(option.id) },
                 ) {
-                    Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                    Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 option.title,
@@ -238,7 +244,10 @@ private fun DecisionCard(
                             Spacer(Modifier.height(4.dp))
                             LinearProgressIndicator(
                                 progress = { option.voteCount.toFloat() / totalVotes },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(5.dp),
+                                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
                             )
                         }
                         if (option.voterNames.isNotEmpty()) {
@@ -255,9 +264,19 @@ private fun DecisionCard(
                         }
                         if (canWrite && !decision.isDecided && !decision.isCancelled) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                TextButton(onClick = { onDecide(option) }) { Text("定为结果") }
-                                TextButton(onClick = { onRemoveOption(option.id) }) {
-                                    Text("删选项", color = MaterialTheme.colorScheme.error)
+                                TextButton(
+                                    onClick = { onDecide(option) },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                ) { Text("定为结果", style = MaterialTheme.typography.labelLarge) }
+                                TextButton(
+                                    onClick = { onRemoveOption(option.id) },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                ) {
+                                    Text(
+                                        "删选项",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
                                 }
                             }
                         }
@@ -292,15 +311,31 @@ private fun DecisionCard(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextButton(onClick = onAddOption) { Text("加选项") }
+                    TextButton(
+                        onClick = onAddOption,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    ) { Text("加选项", style = MaterialTheme.typography.labelLarge) }
                     if (decision.isDecided) {
-                        TextButton(onClick = onReopen) { Text("重新开放") }
+                        TextButton(
+                            onClick = onReopen,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        ) { Text("重新开放", style = MaterialTheme.typography.labelLarge) }
                     } else if (!decision.isCancelled) {
-                        TextButton(onClick = onCancel) { Text("取消决策") }
+                        TextButton(
+                            onClick = onCancel,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        ) { Text("取消决策", style = MaterialTheme.typography.labelLarge) }
                     }
                     if (decision.canDelete) {
-                        TextButton(onClick = onDelete) {
-                            Text("删除", color = MaterialTheme.colorScheme.error)
+                        TextButton(
+                            onClick = onDelete,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        ) {
+                            Text(
+                                "删除",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.error,
+                            )
                         }
                     }
                 }

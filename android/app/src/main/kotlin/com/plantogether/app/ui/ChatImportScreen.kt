@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,6 +34,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -129,15 +131,31 @@ fun ChatImportScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("从聊天记录生成规划") },
-                navigationIcon = { TextButton(onClick = onBack) { Text("← 返回") } },
+                title = {
+                    Text(
+                        "从聊天记录生成规划",
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                },
+                navigationIcon = {
+                    TextButton(
+                        onClick = onBack,
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                    ) { Text("‹ 返回", style = MaterialTheme.typography.labelLarge) }
+                },
                 actions = {
                     if (items.isNotEmpty()) {
-                        TextButton(onClick = { viewModel.setAllSelected(false) }) { Text("全不选") }
+                        TextButton(onClick = { viewModel.setAllSelected(false) }) {
+                            Text("全不选", style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
             )
         },
+        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -236,10 +254,9 @@ fun ChatImportScreen(
                         for ((day, list) in groups) {
                             if (day != null) {
                                 item {
-                                    Text(
+                                    SectionLabel(
                                         formatDayLabel(day, ready?.extraction?.startDate),
-                                        style = MaterialTheme.typography.titleSmall,
-                                        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                                        modifier = Modifier.padding(top = 14.dp, bottom = 6.dp),
                                     )
                                 }
                             }
@@ -266,19 +283,23 @@ fun ChatImportScreen(
                         )
                     }
 
-                    HorizontalDivider()
+                    SoftDivider()
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 10.dp),
+                            .padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box {
-                            OutlinedCard(onClick = { tripMenuOpen = true }) {
+                            Surface(
+                                onClick = { tripMenuOpen = true },
+                                shape = MaterialTheme.shapes.medium,
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                            ) {
                                 Text(
                                     targetTrip?.title ?: "选择行程",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -311,7 +332,8 @@ fun ChatImportScreen(
                                 if (id != null) viewModel.importInto(id)
                             },
                             enabled = selected > 0 && targetTripId != null && importing == null,
-                        ) { Text("导入 $selected 条") }
+                            shape = MaterialTheme.shapes.medium,
+                        ) { Text("导入 $selected 条", style = MaterialTheme.typography.labelLarge) }
                     }
                 }
             }
@@ -365,14 +387,21 @@ private fun DropZone(onPickFile: () -> Unit, onPasteText: () -> Unit) {
             .padding(top = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        OutlinedCard(
+        AppCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onPickFile),
+            borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
         ) {
             Column(Modifier.padding(20.dp)) {
                 Text("选择聊天记录压缩包", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "点这里选文件",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.height(8.dp))
                 Text(
                     "微信里长按一条消息 → 多选 → 选好要导入的消息 → 转发到其他应用 → 选择 PlanTogether。\n" +
                         "微信会自己把聊天打成压缩包，我们只在本机解压读文字，不上传。",
@@ -381,16 +410,14 @@ private fun DropZone(onPickFile: () -> Unit, onPasteText: () -> Unit) {
                 )
             }
         }
-        Spacer(Modifier.height(12.dp))
-        TextButton(onClick = onPasteText) { Text("或者直接粘贴聊天文字") }
+        Spacer(Modifier.height(8.dp))
+        TextButton(onClick = onPasteText) {
+            Text("或者直接粘贴聊天文字", style = MaterialTheme.typography.labelLarge)
+        }
 
-        Spacer(Modifier.height(28.dp))
-        Text(
-            "能认出什么",
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(20.dp))
+        SectionLabel("能认出什么", modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(8.dp))
         val notes = listOf(
             "地点 —— 聊到「去西湖」「吃楼外楼」这类，会连同提到的时间一起提出来",
             "待定 —— 有人问「住民宿还是住酒店」，会变成一个待投票的决策",
@@ -424,8 +451,10 @@ private fun SummaryCard(
     attachmentCount: Int,
     summary: String,
 ) {
-    OutlinedCard(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        Column(Modifier.padding(14.dp)) {
+    AppCard(modifier = Modifier
+        .fillMaxWidth()
+        .padding(top = 8.dp)) {
+        Column(Modifier.padding(16.dp)) {
             Text(summary, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
             val meta = buildList {
@@ -449,12 +478,17 @@ private fun SuggestionRow(
     onEdit: () -> Unit,
     onDrop: () -> Unit,
 ) {
-    OutlinedCard(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
+        borderColor = if (suggestion.selected) {
+            MaterialTheme.colorScheme.outlineVariant
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
     ) {
-        Row(Modifier.padding(end = 8.dp), verticalAlignment = Alignment.Top) {
+        Row(Modifier.padding(end = 6.dp), verticalAlignment = Alignment.Top) {
             Checkbox(checked = suggestion.selected, onCheckedChange = { onToggle() })
             Column(
                 Modifier
@@ -501,10 +535,20 @@ private fun SuggestionRow(
                     fontFamily = FontFamily.Default,
                 )
             }
-            Row {
-                TextButton(onClick = onEdit) { Text("改") }
-                TextButton(onClick = onDrop) {
-                    Text("不要", color = MaterialTheme.colorScheme.error)
+            Column(Modifier.padding(top = 6.dp)) {
+                TextButton(
+                    onClick = onEdit,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                ) { Text("改", style = MaterialTheme.typography.labelLarge) }
+                TextButton(
+                    onClick = onDrop,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        "不要",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
         }
@@ -519,13 +563,11 @@ private fun KindChip(kind: SuggestionKind) {
         SuggestionKind.TODO -> MaterialTheme.colorScheme.secondaryContainer
         SuggestionKind.BUDGET -> MaterialTheme.colorScheme.surfaceVariant
     }
-    Surface(shape = RoundedCornerShape(50), color = color) {
-        Text(
-            kind.label,
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-        )
-    }
+    Pill(
+        kind.label,
+        container = color,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    )
 }
 
 @Composable

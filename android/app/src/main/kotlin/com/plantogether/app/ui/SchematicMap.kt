@@ -7,7 +7,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import com.plantogether.app.data.PlaceResponse
@@ -20,6 +19,10 @@ import com.plantogether.app.data.PlaceResponse
 fun SchematicMap(places: List<PlaceResponse>, modifier: Modifier = Modifier) {
     val textMeasurer = rememberTextMeasurer()
     val labelStyle = MaterialTheme.typography.labelLarge
+    // 画布用主题色，不再写死蓝色（第九轮统一视觉）
+    val lineColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+    val markerColor = MaterialTheme.colorScheme.primary
+    val markerTextColor = MaterialTheme.colorScheme.onPrimary
     val plotted = places
         .filter { it.latitude != null && it.longitude != null }
         .sortedBy { it.sortOrder }
@@ -49,20 +52,18 @@ fun SchematicMap(places: List<PlaceResponse>, modifier: Modifier = Modifier) {
         val points = plotted.map { project(it.latitude!!, it.longitude!!) }
 
         // 按顺序连线
-        val lineColor = Color(0xFF1E88E5)
         for (i in 0 until points.size - 1) {
             drawLine(color = lineColor, start = points[i], end = points[i + 1], strokeWidth = 4f)
         }
 
         // 标记点 + 序号
-        val markerColor = Color(0xFF1E88E5)
         points.forEachIndexed { index, point ->
             drawCircle(color = markerColor, radius = 20f, center = point)
             val layout = textMeasurer.measure("${index + 1}", style = labelStyle)
             drawText(
                 textLayoutResult = layout,
                 topLeft = Offset(point.x - layout.size.width / 2f, point.y - layout.size.height / 2f),
-                color = Color.White,
+                color = markerTextColor,
             )
         }
     }

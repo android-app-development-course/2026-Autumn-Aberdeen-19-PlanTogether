@@ -3,6 +3,7 @@ package com.plantogether.app.ui
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -46,10 +47,10 @@ fun MapTab(trip: TripResponse?, places: List<PlaceResponse>) {
             Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(12.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.fillMaxSize(),
             ) {
@@ -58,6 +59,8 @@ fun MapTab(trip: TripResponse?, places: List<PlaceResponse>) {
                         Text(
                             "给地点填上经纬度，这里就会出现示意图。\n（本地图是手绘示意图，不做真实导航）",
                             style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             modifier = Modifier.padding(24.dp),
                         )
                     }
@@ -86,22 +89,19 @@ fun MapTab(trip: TripResponse?, places: List<PlaceResponse>) {
                 Row(
                     Modifier
                         .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.medium)
                         .clickable(enabled = !place.mapLink.isNullOrBlank()) {
                             runCatching {
                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(place.mapLink)))
                             }
                         }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 8.dp, horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        "$index.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.width(28.dp),
-                    )
+                    NumberBadge("$index")
+                    Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(place.name, style = MaterialTheme.typography.bodyMedium)
+                        Text(place.name, style = MaterialTheme.typography.bodyLarge)
                         val dateLabel = formatDayLabel(place.date, trip?.startDate)
                         Text(
                             listOfNotNull(dateLabel, place.startTime).joinToString(" · "),

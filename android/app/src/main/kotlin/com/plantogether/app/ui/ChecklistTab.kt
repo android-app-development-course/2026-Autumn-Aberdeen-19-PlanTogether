@@ -52,28 +52,35 @@ fun ChecklistTab(
     val total = checklist.size
 
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    if (total == 0) "清单还是空的" else "已完成 $doneCount / $total",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Spacer(Modifier.weight(1f))
-                if (total > 0) {
-                    Text(
-                        "${doneCount * 100 / total}%",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
+        if (total > 0) {
+            AppCard(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "已完成 $doneCount / $total",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Pill(
+                            "${doneCount * 100 / total}%",
+                            container = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            bold = true,
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    LinearProgressIndicator(
+                        progress = { doneCount.toFloat() / total },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp),
+                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
                     )
                 }
             }
-            if (total > 0) {
-                Spacer(Modifier.height(6.dp))
-                LinearProgressIndicator(
-                    progress = { doneCount.toFloat() / total },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+        } else {
+            Spacer(Modifier.height(8.dp))
         }
 
         LazyColumn(
@@ -83,48 +90,72 @@ fun ChecklistTab(
             contentPadding = PaddingValues(horizontal = 16.dp),
         ) {
             if (total == 0) {
-                item { EmptyHint("加几件行前要办的事，比如「订高铁票」「取现金」「买门票」。") }
+                item {
+                    EmptyState(
+                        title = "清单还是空的",
+                        hint = "加几件行前要办的事，比如「订高铁票」「取现金」「买门票」。",
+                        icon = "✓",
+                        modifier = Modifier.padding(horizontal = 0.dp),
+                    )
+                }
             }
             items(checklist, key = { it.id }) { item ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Checkbox(
-                        checked = item.done,
-                        onCheckedChange = { checked ->
-                            if (canWrite) viewModel.setChecklistDone(item, checked)
-                        },
-                        enabled = canWrite,
-                    )
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            item.title,
-                            style = MaterialTheme.typography.bodyMedium,
-                            textDecoration = if (item.done) TextDecoration.LineThrough else TextDecoration.None,
+                AppCard(modifier = Modifier.padding(vertical = 4.dp)) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 4.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(
+                            checked = item.done,
+                            onCheckedChange = { checked ->
+                                if (canWrite) viewModel.setChecklistDone(item, checked)
+                            },
+                            enabled = canWrite,
                         )
-                        val meta = buildList {
-                            item.assignee?.takeIf { it.isNotBlank() }?.let { add("负责人：$it") }
-                            item.createdByName?.let { add("由 $it 添加") }
-                        }
-                        if (meta.isNotEmpty()) {
+                        Column(Modifier.weight(1f)) {
                             Text(
-                                meta.joinToString(" · "),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                item.title,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (item.done) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                                textDecoration = if (item.done) TextDecoration.LineThrough else TextDecoration.None,
                             )
+                            val meta = buildList {
+                                item.assignee?.takeIf { it.isNotBlank() }?.let { add("负责人 $it") }
+                                item.createdByName?.let { add("由 $it 添加") }
+                            }
+                            if (meta.isNotEmpty()) {
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    meta.joinToString(" · "),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
-                    }
-                    if (canWrite) {
-                        TextButton(onClick = { editing = item }) { Text("改") }
-                        TextButton(onClick = { deleting = item }) {
-                            Text("删", color = MaterialTheme.colorScheme.error)
+                        if (canWrite) {
+                            TextButton(
+                                onClick = { editing = item },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            ) { Text("改", style = MaterialTheme.typography.labelLarge) }
+                            TextButton(
+                                onClick = { deleting = item },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            ) {
+                                Text(
+                                    "删",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
                         }
                     }
                 }
-                HorizontalDivider()
             }
         }
 
@@ -133,7 +164,7 @@ fun ChecklistTab(
                 Modifier
                     .fillMaxWidth()
                     .imePadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -143,6 +174,7 @@ fun ChecklistTab(
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("添加一件事…") },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
                 )
                 Button(
                     onClick = {

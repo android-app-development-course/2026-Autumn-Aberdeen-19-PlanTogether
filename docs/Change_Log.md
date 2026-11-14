@@ -483,3 +483,91 @@ places/checklist/decisions，比较归一化后的名字（去空格），命中
 - 附件（图片/视频）只跳过、不识别；图片里的店名要 OCR 才能用，暂不做
 - 导入后不能生成「行程摘要」发回群里——这是自然的增长闭环，还没做
 - 微信单次最多导出 100 条，长聊天要分批
+
+## 2026-11-14 · 第九轮：把界面重做一遍
+
+### 起因
+
+第二轮功能齐了以后，界面一直是「能看」但不是「好看」：`Theme.kt` 里只有三个颜色，
+全 App 12 处 `RoundedCornerShape` 用了 8dp / 10dp / 12dp / 16dp 四种不统一的圆角，
+没有任何字号规范，一屏里主按钮、次按钮、导航、卡片标题全在抢注意力。
+拿墨刀上的旅游类模板（`modao.cc` 的旅游 App 模板合集）对了一遍，差距很具体：
+
+- 模板都是**大圆角 + 柔和着色底**（浅蓝/淡紫/暖白），不是纯白屏
+- 一张卡片只有一个视觉落点，卡片顶部有图形区（我们没有图片资源，改用色块 + 目的地首字）
+- 价格/关键数字用**唯一一个暖色**强调，其余全部压低
+- 日期、状态、人数一律做成**胶囊徽章**
+- 标题粗且大，留白足
+
+墨刀是原型工具，导出的设计稿不能直接生成 Compose 代码，所以这轮的做法是
+**把模板的视觉语言提炼成设计系统，在 Compose 里重建**，而不是照搬某一张图。
+
+### 做了什么
+
+**1. 设计系统重建**（`ui/theme/Theme.kt` 完全重写）
+
+- 配色：`primary = #0F6E6E`（深海水青）、`secondary = #D2694C`（珊瑚，**只给金额**）、
+  `background = #FFFBF3`（暖米色纸底，替代纯白）、`surfaceVariant = #F2EDE2`、
+  `outlineVariant = #E5DED0`，深色主题配一套对应的
+- `Shapes`：`extraSmall 8 / small 12 / medium 16 / large 22 / extraLarge 28`，取代散落的 `RoundedCornerShape`
+- `Typography`：标题全 Bold/SemiBold + 负 letterSpacing，正文行高放宽（bodyLarge 24sp、bodyMedium 21sp）
+- `PriceTextStyle`：金额统一珊瑚色 + 加粗
+
+**2. 新建共用组件库 `ui/UIKit.kt`**
+
+`AppCard`（白底 + 1dp 极细描边 + `shapes.large`，比 Material `Card` 轻）、
+`Pill`（胶囊徽章）、`PriceTag`（金额）、`SectionLabel`（左侧 3dp 色条的小标题）、
+`EmptyState`（空态统一版式）、`SoftDivider`、`DestinationBadge`（目的地首字色块，替代封面图）、
+`NumberBadge`、`MetaLine`、`ScreenHeader`。
+
+**3. 逐屏套用**
+
+| 屏 | 关键改动 |
+|---|---|
+| 行程列表 | 顶栏「我的行程」+ 副标题 + 单个「更多」菜单（原来四个按钮平铺）；「＋ 新建行程」做成整宽主按钮；行程卡改色块 + 标题 + 日期 + 两个胶囊 |
+| 行程详情头 | `DestinationBadge` + 日期 + 人数/角色胶囊 + 邀请码块；Tab 改下划线式、去掉分割线 |
+| 行程页 | 天标题带小计胶囊；地点卡改 `AppCard`（圆形序号 + 名称 + 时间段胶囊 + 金额靠右 + 次要动作行 + 编辑删除） |
+| 地图 | 示意图连线与标记改用主题色（原来硬编码 `#1E88E5`），列表项加序号圆徽章 |
+| 链接 | 卡片化 + `SoftDivider`，动作按钮紧凑化 |
+| 讨论 | 消息卡带头像色块、「关于某地点」变青色胶囊 |
+| 投票 | 选项块色彩化（已投=青、定案=珊瑚）+ 圆头进度条 |
+| 清单 | 进度头卡片化（`已完成 1/3` + 百分比胶囊 + 圆头进度条），条目改卡片 |
+| 预算 | 金额 `PriceTag` + 人数胶囊 + 圆头进度条；「按天拆分」「费用明细」用 `SectionLabel` |
+| 登录 | logo 色块 + 大标题 + 表单装进卡片 + 整宽按钮；服务器地址入口保留在底部 |
+| 新建行程 | 六个输入框收进一张卡 + 大标题副标题 + 整宽按钮 |
+| 聊天导入 | 选文件卡加青色描边 + 「点这里选文件」，结果页每条改卡片、「改/不要」改竖排紧凑按钮 |
+
+**4. 顺手修掉的旧问题**
+
+- `SchematicMap.kt` 硬编码 `Color(0xFF1E88E5)`（换主题就露馅）→ 改用 `MaterialTheme.colorScheme`
+- `ItineraryTab.kt` 里 `fun EmptyHint(text: String) {    Box(` 缺换行，一行挤在一起
+- `README.md` 目录树里 `FormInputs.kt` / `ServerSettingsDialog.kt` 各重复出现两次
+
+### 验证
+
+- `compileDebugKotlin` / `assembleDebug` 全部 BUILD SUCCESSFUL
+- 模拟器（Medium_Phone_API_37.0）逐屏走查，12 张截图：
+  `y1-login` `y2-detail` `y3-map` `y4-discussion` `y5-decisions` `y6-checklist`
+  `y7-budget` `y8-links` `y9-create` `y10-menu` `y11-chatimport` `y12-results`
+- 全 App 已无裸 `Card(`；裸 `RoundedCornerShape` 只剩二维码白底、logo 这类特例
+- 后端与接口零改动，`scripts/api-smoke.ps1` 88 项仍全通过；18 个单测仍全绿
+
+### 编译中踩的坑
+
+- `LinksTab.kt` 用了 `Alignment` 忘记 import；`ChatImportScreen.kt` 用了 `PaddingValues` 忘记 import
+- 批量替换时 `shape = MaterialTheme.shapes.medium,` 被重复插入两遍，
+  报 `@Composable invocations can only happen from the context of a @Composable function`
+  —— 批量改之前要确认 old_string 唯一
+
+### 依赖变化
+
+**无新增依赖。** 刻意没有引入图标库：现在界面上的箭头、加号都是文字符号（`‹`、`＋`、`↑↓`）
+配色块，观感够用且 APK 不涨。真要更好看，接 `material-icons-extended` 或自绘 SVG 即可。
+
+### 遗留
+
+- **没有真图标**：`‹ 返回`、`＋ 添加` 这类还是文字符号，是这轮最明显的妥协
+- **没有插画**：空态是文字符号 + 色块，不是插画
+- **没有动效**：页面切换、卡片入场都是默认的，没有过渡动画
+- **深色主题没走查**：配色定义了，但只在浅色下截图验证过
+- 行程页仍是普通 `Column`（为了支持长按拖拽排序），行程很长时没有虚拟化

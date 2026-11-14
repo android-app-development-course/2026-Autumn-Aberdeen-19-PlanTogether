@@ -139,7 +139,7 @@ private fun PoiRow(item: PoiSuggestion, onClick: () -> Unit) {    Column(
             item.typeLabel?.let {
                 Spacer(Modifier.width(6.dp))
                 Surface(
-                    shape = RoundedCornerShape(4.dp),
+                    shape = MaterialTheme.shapes.extraSmall,
                     color = MaterialTheme.colorScheme.secondaryContainer,
                 ) {
                     Text(

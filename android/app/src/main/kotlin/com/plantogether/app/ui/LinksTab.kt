@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,7 +61,11 @@ fun LinksTab(
         ) {
             if (links.isEmpty()) {
                 item {
-                    EmptyHint("还没有收藏链接。可以从其他 App 直接分享进来，也可以在这里手动粘贴。")
+                    EmptyState(
+                        title = "还没有收藏链接",
+                        hint = "可以从其他 App 直接分享进来，也可以在这里手动粘贴。",
+                        icon = "🔗",
+                    )
                 }
             }
             items(links, key = { it.id }) { link ->
@@ -76,10 +81,15 @@ fun LinksTab(
         if (canWrite) {
             Button(
                 onClick = { showAdd = true },
+                shape = MaterialTheme.shapes.medium,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            ) { Text("收藏链接") }
+                    .height(50.dp)
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 10.dp),
+            ) {
+                Text("收藏链接", style = MaterialTheme.typography.titleSmall)
+            }
         }
     }
 
@@ -126,18 +136,19 @@ private fun LinkCard(
 ) {
     val context = LocalContext.current
 
-    Card(
-        Modifier
+    AppCard(
+        modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
     ) {
-        Column(Modifier.padding(12.dp)) {
+        Column(Modifier.padding(16.dp)) {
             Text(
                 link.title?.takeIf { it.isNotBlank() } ?: link.url,
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            Spacer(Modifier.height(2.dp))
             Text(
                 link.url,
                 style = MaterialTheme.typography.bodySmall,
@@ -164,20 +175,35 @@ private fun LinkCard(
                 )
             }
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
+            SoftDivider()
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(onClick = {
-                    runCatching {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link.url)))
-                    }
-                }) { Text("打开") }
+                TextButton(
+                    onClick = {
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link.url)))
+                        }
+                    },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                ) { Text("打开", style = MaterialTheme.typography.labelLarge) }
                 if (canWrite) {
-                    TextButton(onClick = onEdit) { Text("编辑") }
-                    TextButton(onClick = onDelete) {
-                        Text("删除", color = MaterialTheme.colorScheme.error)
+                    TextButton(
+                        onClick = onEdit,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                    ) { Text("编辑", style = MaterialTheme.typography.labelLarge) }
+                    TextButton(
+                        onClick = onDelete,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            "删除",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.error,
+                        )
                     }
                 }
             }
