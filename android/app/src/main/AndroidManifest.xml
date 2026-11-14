@@ -28,6 +28,18 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
+            <!-- 接住微信「合并转发 → 转发到其他应用」送来的聊天记录压缩包。
+                 微信 8.0.78 起会把选中的消息打成一个 ZIP（内含 聊天记录.txt）。
+                 octet-stream 是很多 App 交 zip 时的实际 mimeType，一并接住；
+                 真正的格式校验在 MainActivity.parseChatZip 里做（认 PK 头）。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+
             <!-- 邀请深链：plantogether://join/CODE（二维码里也是这个链接） -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

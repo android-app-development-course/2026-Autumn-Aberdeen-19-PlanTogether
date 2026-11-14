@@ -47,6 +47,7 @@ fun TripListScreen(
     onCreateTrip: () -> Unit,
     onJoinedTrip: (Long) -> Unit,
     onLogout: () -> Unit,
+    onChatImport: () -> Unit = {},
 ) {
     val state by viewModel.tripsState.collectAsStateWithLifecycle()
     val seenMap by viewModel.seenRevisions.collectAsStateWithLifecycle()
@@ -68,7 +69,8 @@ fun TripListScreen(
         ) {
             Text("我的行程", style = MaterialTheme.typography.headlineSmall)
             Row {
-                TextButton(onClick = { showJoin = true }) { Text("加入行程") }
+                TextButton(onClick = onChatImport) { Text("聊天导入") }
+                TextButton(onClick = { showJoin = true }) { Text("加入") }
                 TextButton(onClick = onCreateTrip) { Text("新建") }
                 TextButton(onClick = onLogout) { Text("退出") }
             }

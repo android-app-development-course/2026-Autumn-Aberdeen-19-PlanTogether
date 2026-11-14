@@ -30,6 +30,9 @@ fun PlanTogetherApp(
     shareEventId: Long = 0L,
     inviteCode: String? = null,
     inviteEventId: Long = 0L,
+    chatZipBytes: ByteArray? = null,
+    chatZipName: String? = null,
+    chatZipEventId: Long = 0L,
     viewModel: MainViewModel = viewModel(),
 ) {
     val navController = rememberNavController()
@@ -80,6 +83,13 @@ fun PlanTogetherApp(
         }
     }
 
+    // 微信把聊天记录压缩包转发过来：登录后直接进导入页
+    LaunchedEffect(chatZipEventId, isLoggedIn) {
+        if (chatZipEventId != 0L && isLoggedIn) {
+            navController.navigate("chatImport")
+        }
+    }
+
     if (bootState is MainViewModel.BootState.Loading) {
         AppSplash()
         return
@@ -105,6 +115,7 @@ fun PlanTogetherApp(
                     viewModel = viewModel,
                     onOpenTrip = { id -> navController.navigate("trip/$id") },
                     onCreateTrip = { navController.navigate("create") },
+                    onChatImport = { navController.navigate("chatImport") },
                     onJoinedTrip = { id ->
                         navController.navigate("trip/$id") {
                             popUpTo("trips") { inclusive = false }
@@ -122,6 +133,19 @@ fun PlanTogetherApp(
                 CreateTripScreen(
                     viewModel = viewModel,
                     onDone = { navController.popBackStack() },
+                )
+            }
+            composable("chatImport") {
+                ChatImportScreen(
+                    onBack = { navController.popBackStack() },
+                    onImported = { id ->
+                        navController.navigate("trip/$id") {
+                            popUpTo("trips") { inclusive = false }
+                        }
+                    },
+                    initialZipBytes = chatZipBytes,
+                    initialZipName = chatZipName,
+                    initialZipEventId = chatZipEventId,
                 )
             }
             composable("trip/{tripId}") { backStackEntry ->
