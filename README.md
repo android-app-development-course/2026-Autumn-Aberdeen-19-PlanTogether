@@ -1,5 +1,7 @@
 # PlanTogether 团队旅行规划 App
 
+> 2026 秋季 · 阿伯丁 · 组 19 课程项目 —— PlanTogether: Helping decisions easier, one outing at a time
+
 把团队旅行里散落在各处的链接、地点、想法，汇聚成一个大家一起看、一起决定、一起用的行程计划。
 
 > 当前状态：MVP 闭环已跑通 —— 建行程 → 发邀请码拉人 → 一起加地点/链接 → 讨论 → 投票定案 → 行前清单 → 预算 → 导出。
