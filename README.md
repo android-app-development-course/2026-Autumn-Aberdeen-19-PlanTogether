@@ -11,8 +11,9 @@
 ```
 D:\PlanTogether\
 ├── README.md                  ← 本文件（查询入口）
+├── PlanTogether_English_Business_Plan.md  ← 商业计划书（原始需求）
+├── G19 Business Plan.pptx     ← 小组汇报 PPT
 ├── docs\
-│   ├── PlanTogether_Business_Plan.md   ← 商业计划书（原始需求）
 │   └── Change_Log.md                   ← 迭代记录（每次改了什么）
 ├── scripts\
 │   ├── api-smoke.ps1          ← 后端接口冒烟测试（88 项断言）
